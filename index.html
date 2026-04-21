@@ -1167,7 +1167,7 @@ function showApp(user){
 ═══════════════════════════════════════════════════ */
 function buildState(){
   return {v:2,savedAt:new Date().toISOString(),lang,
-    startDate:document.getElementById('start-date').value,
+    startDate:document.getElementById(\'start-date').value,
     endDate:document.getElementById('end-date').value,
     guests:{...guests},transport,category,
     origin:document.getElementById('origin').value,
@@ -1176,7 +1176,7 @@ function buildState(){
     expRows: collectExpRows()
   };
 }
-function getWPs(){ return Array.from(document.querySelectorAll('#wp-list .wp-item')).map(el=>({name:el.querySelector('.wp-name').textContent,type:el.querySelector('.badge').classList.contains('b-stop')?'stop':'visit'})); }
+function getWPs(){ return Array.from(document.querySelectorAll('#wp-list .wp-item')).map(el=>({name:el.querySelector('.wp-name').textContent,type:el.querySelector('.badge').classList.contains('b-stop')?\'stop':'visit'})); }
 function collectExpRows(){ return Array.from(document.querySelectorAll('#exp-body tr')).map(tr=>{const t=tr.querySelectorAll('td');return{date:t[0]?.textContent,item:t[1]?.textContent,cat:t[2]?.textContent?.trim(),amt:t[3]?.textContent,memo:t[4]?.textContent};}); }
 
 async function saveToDrive(){
@@ -1210,13 +1210,13 @@ async function loadFromDrive(){
 function restoreState(s){
   if(!s) return;
   if(s.lang) setLang(s.lang);
-  if(s.startDate) document.getElementById('start-date').value=s.startDate;
+  if(s.startDate) document.getElementById(\'start-date').value=s.startDate;
   if(s.endDate) document.getElementById('end-date').value=s.endDate;
   if(s.origin) document.getElementById('origin').value=s.origin;
   if(s.dest) document.getElementById('dest').value=s.dest;
   if(s.guests) { Object.assign(guests,s.guests); ['adults','children','infants'].forEach(k=>document.getElementById('cnt-'+k).textContent=guests[k]); }
-  if(s.transport){ transport=s.transport; document.querySelectorAll('.t-card').forEach(c=>c.classList.toggle('selected',c.dataset.t===transport)); document.getElementById('drive-settings').style.display=transport.startsWith('car')?'':'none'; }
-  if(s.category){ category=s.category; document.querySelectorAll('.cat-card').forEach(c=>c.classList.toggle('selected',c.dataset.cat===category)); }
+  if(s.transport){ transport=s.transport; document.querySelectorAll('.t-card').forEach(c=>c.classList.toggle(\'selected',c.dataset.t===transport)); document.getElementById('drive-settings').style.display=transport.startsWith('car')?'':'none'; }
+  if(s.category){ category=s.category; document.querySelectorAll('.cat-card').forEach(c=>c.classList.toggle(\'selected',c.dataset.cat===category)); }
   if(s.waypoints) s.waypoints.forEach(w=>addWPItem(w.name,w.type));
   if(s.routeData){ routeData=s.routeData; renderRouteUI(); renderWeather(); renderPOIs(); renderEvents(); document.getElementById('route-content').style.display=''; }
   if(s.expRows) s.expRows.forEach(r=>addExpRow(r.date,r.item,r.cat,r.amt,r.memo));
@@ -1335,11 +1335,11 @@ function goStep(n){
     const s=parseInt(el.dataset.step);
     el.classList.toggle('active',s===n);
     el.classList.toggle('done',s<n);
-    if(s===n) el.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
+    if(s===n) el.scrollIntoView({behavior:\'smooth',block:'nearest',inline:'center'});
   });
   // Progress bar
   document.getElementById('prog').style.width=(n/8*100)+'%';
-  window.scrollTo({top:0,behavior:'smooth'});
+  window.scrollTo({top:0,behavior:\'smooth'});
   autoSave();
 }
 
@@ -1347,16 +1347,16 @@ function goStep(n){
    FORM
 ═══════════════════════════════════════════════════ */
 function updateDuration(){
-  const s=new Date(document.getElementById('start-date').value);
+  const s=new Date(document.getElementById(\'start-date').value);
   const e=new Date(document.getElementById('end-date').value);
   if(!isNaN(s)&&!isNaN(e)&&e>=s){
     const d=Math.round((e-s)/86400000);
-    document.getElementById('dur-disp').value = lang==='ko' ? (d>0?`${d}박 ${d+1}일`:'당일치기') : (d>0?`${d} night${d>1?'s':''} / ${d+1} days`:'Day trip');
+    document.getElementById('dur-disp').value = lang==='ko' ? (d>0?`${d}박 ${d+1}일`:'당일치기') : (d>0?`${d} night${d>1?\'s':''} / ${d+1} days`:'Day trip');
   }
 }
 function chg(type,delta){ guests[type]=Math.max(0,guests[type]+delta); document.getElementById('cnt-'+type).textContent=guests[type]; }
-function selT(el,val){ document.querySelectorAll('.t-card').forEach(c=>c.classList.remove('selected')); el.classList.add('selected'); transport=val; document.getElementById('drive-settings').style.display=val.startsWith('car')?'':'none'; }
-function selCat(el){ document.querySelectorAll('.cat-card').forEach(c=>c.classList.remove('selected')); el.classList.add('selected'); category=el.dataset.cat; }
+function selT(el,val){ document.querySelectorAll('.t-card').forEach(c=>c.classList.remove(\'selected')); el.classList.add(\'selected'); transport=val; document.getElementById('drive-settings').style.display=val.startsWith('car')?'':'none'; }
+function selCat(el){ document.querySelectorAll('.cat-card').forEach(c=>c.classList.remove(\'selected')); el.classList.add(\'selected'); category=el.dataset.cat; }
 
 /* ═══════════════════════════════════════════════════
    WAYPOINTS
@@ -1372,8 +1372,8 @@ function addWP(){
 function addWPItem(name,type){
   const list=document.getElementById('wp-list');
   const item=document.createElement('div'); item.className='wp-item';
-  const dc=type==='stop'?'dot-stop':'dot-visit', bc=type==='stop'?'b-stop':'b-visit';
-  const lbl=type==='stop'?t('opt_stop'):t('opt_visit');
+  const dc=type===\'stop'?'dot-stop':'dot-visit', bc=type===\'stop'?'b-stop':'b-visit';
+  const lbl=type===\'stop'?t('opt_stop'):t('opt_visit');
   item.innerHTML=`<div class="wp-dot ${dc}"></div><span class="wp-name">${name}</span><span class="badge ${bc}">${lbl}</span><button onclick="this.closest('.wp-item').remove()" style="background:none;border:none;cursor:pointer;color:var(--txt3);font-size:18px;line-height:1;padding:0 4px">×</button>`;
   list.appendChild(item);
 }
@@ -1393,7 +1393,7 @@ function generateRoute(){
   document.getElementById('route-content').style.display='none';
 
   const wps        = getWPs();
-  const startDate  = new Date(document.getElementById('start-date').value);
+  const startDate  = new Date(document.getElementById(\'start-date').value);
   const endDate    = new Date(document.getElementById('end-date').value);
   if(isNaN(startDate)||isNaN(endDate)||endDate<startDate){
     showToast(lang==='ko'?'날짜를 확인해주세요.':'Please check your travel dates.');
@@ -1571,7 +1571,7 @@ function dijkstra(start, end){
 
 // ── Normalize typed city name to a CITY_DATA key ───────
 function normCity(input){
-  if(!input || typeof input !== 'string') return input;
+  if(!input || typeof input !== \'string') return input;
   const trimmed   = input.trim();
   const lower     = trimmed.toLowerCase();
   const parts     = trimmed.split(',').map(s=>s.trim());
@@ -1935,12 +1935,12 @@ function renderRouteUI(){
   // Day pills
   const pills=document.getElementById('day-pills');
   pills.innerHTML=`<span class="day-pill active" onclick="filterDay(this,'all')">${lang==='ko'?'전체':'All'}</span>`;
-  days.forEach(d=>{ const p=document.createElement('span'); p.className='day-pill'; p.setAttribute('data-day',d.day); p.textContent=`${t('day_label')} ${d.day}`; p.onclick=function(){filterDay(this,d.day)}; pills.appendChild(p); });
+  days.forEach(d=>{ const p=document.createElement(\'span'); p.className='day-pill'; p.setAttribute('data-day',d.day); p.textContent=`${t('day_label')} ${d.day}`; p.onclick=function(){filterDay(this,d.day)}; pills.appendChild(p); });
 
   // Day cards
   const container=document.getElementById('route-days'); container.innerHTML='';
   days.forEach((d,i)=>{
-    const dateStr=d.date.toLocaleDateString(lang==='ko'?'ko-KR':'en-US',{month:'short',day:'numeric'});
+    const dateStr=d.date.toLocaleDateString(lang==='ko'?'ko-KR':'en-US',{month:\'short',day:'numeric'});
     const card=document.createElement('div'); card.className='route-day'; card.dataset.day=d.day;
     const isOpen=i===0;
     const isFlyMode = routeData.mode==='fly-rent';
@@ -1958,9 +1958,9 @@ function renderRouteUI(){
         </div>
       </div>`).join('');
     const sightsHtml = (d.sights||[]).map((s,si)=>{
-      const sightId='sight-'+Math.random().toString(36).slice(2);
+      const sightId=\'sight-'+Math.random().toString(36).slice(2);
       const safeS=s.replace(/'/g,"\\'");
-      const ttip=buildGmapTooltip(s,d.to,'sight',+(Math.random()*0.8+4.1).toFixed(1),'','');
+      const ttip=buildGmapTooltip(s,d.to,\'sight',+(Math.random()*0.8+4.1).toFixed(1),'','');
       const distMi=Math.floor(Math.random()*5+2);
       return `<div class="tl-stop tl-card">
         <div class="tl-dot d-mid"></div>
@@ -2141,7 +2141,7 @@ function renderWeather(){
   const strip = document.getElementById('weather-strip');
   strip.innerHTML = '<div style="font-size:12px;color:var(--txt3);padding:8px 0">Loading weather…</div>';
 
-  const startDate   = new Date(document.getElementById('start-date').value);
+  const startDate   = new Date(document.getElementById(\'start-date').value);
   const today       = new Date(); today.setHours(0,0,0,0);
   const daysAhead   = Math.round((startDate - today) / 86400000);
   const isForecast  = daysAhead >= 0 && daysAhead <= 10;
@@ -2253,7 +2253,7 @@ function renderWeather(){
         '<div class="w-icon">'+icons_s[ci]+'</div>'+
         '<div class="w-temp">'+temp+'°F</div>'+
         '<div class="w-cond">'+(lang==='ko'?conds_ko[ci]:conds_en[ci])+'</div>'+
-        '<div class="w-method">'+( isForecast ? (lang==='ko'?'예보(샘플)':'sample forecast') : (lang==='ko'?'2년 평균':'2yr avg') )+'</div>';
+        '<div class="w-method">'+( isForecast ? (lang==='ko'?'예보(샘플)':\'sample forecast') : (lang==='ko'?'2년 평균':'2yr avg') )+'</div>';
       strip.appendChild(chip);
     }
   });
@@ -2390,7 +2390,7 @@ function buildDistBadge(miles, hrs){
 ═══════════════════════════════════════════════════ */
 function renderEvents(){
   const container=document.getElementById('events-list'); container.innerHTML='';
-  const startDate=new Date(document.getElementById('start-date').value);
+  const startDate=new Date(document.getElementById(\'start-date').value);
   const endDate=new Date(document.getElementById('end-date').value);
 
   if(!routeData||isNaN(startDate)||isNaN(endDate)){
@@ -2405,7 +2405,7 @@ function renderEvents(){
 
   events.forEach(ev=>{
     const id='evt-'+Math.random().toString(36).slice(2);
-    const moStr=ev.date.toLocaleDateString(lang==='ko'?'ko-KR':'en-US',{month:'short'}).toUpperCase();
+    const moStr=ev.date.toLocaleDateString(lang==='ko'?'ko-KR':'en-US',{month:\'short'}).toUpperCase();
     const dayStr=ev.date.getDate();
     const card=document.createElement('div'); card.className='evt-card';
     card.innerHTML=`
@@ -2552,15 +2552,15 @@ function finalizePlan(){ saveToDrive(); showToast(lang==='ko'?'🎉 여행 계�
 /* ═══════════════════════════════════════════════════
    UI HELPERS
 ═══════════════════════════════════════════════════ */
-function showSaveStatus(){ const el=document.getElementById('save-status'); el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),3000); }
-function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3200); }
+function showSaveStatus(){ const el=document.getElementById(\'save-status'); el.classList.add(\'show'); setTimeout(()=>el.classList.remove(\'show'),3000); }
+function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add(\'show'); setTimeout(()=>t.classList.remove(\'show'),3200); }
 
 /* INIT */
 (function init(){
   var today = new Date();
   var fmt = function(d){ return d.toISOString().slice(0,10); };
   var ret = new Date(today); ret.setDate(today.getDate()+7);
-  var sd = document.getElementById('start-date');
+  var sd = document.getElementById(\'start-date');
   var ed = document.getElementById('end-date');
   if(sd) sd.value = fmt(today);
   if(ed) ed.value = fmt(ret);
@@ -2605,7 +2605,7 @@ const DWELL_DEFAULTS = {
   'rest':    20,
   'gas':     15,
   'meal':    45,
-  'sight':   90,
+  \'sight':   90,
   'hotel':   0,
   'pass':    0,
   'drive':   0,
@@ -2639,7 +2639,7 @@ function openTravelMode() {
   routeData.days.forEach((d,i)=>{
     const opt = document.createElement('option');
     opt.value = i;
-    const dateStr = d.date ? d.date.toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '';
+    const dateStr = d.date ? d.date.toLocaleDateString('en-US',{month:\'short',day:'numeric'}) : '';
     opt.textContent = 'Day '+d.day+(dateStr?' ('+dateStr+')':'');
     sel.appendChild(opt);
   });
@@ -2649,7 +2649,7 @@ function openTravelMode() {
   document.getElementById('tv-setup').style.display='';
   document.getElementById('tv-progress').style.display='none';
   document.getElementById('tv-stop-list').innerHTML='';
-  document.getElementById('tv-warning').classList.remove('show');
+  document.getElementById('tv-warning').classList.remove(\'show');
   document.getElementById('travel-mode-overlay').classList.add('open');
 }
 
@@ -2683,7 +2683,7 @@ function buildStopsForDay(dayIdx) {
 
   // AI-recommended sights
   (d.sights||[]).forEach((s,si)=>{
-    stops.push({name:s, type:'sight', icon:'📍', distMi:Math.floor(Math.random()*8+3), dwell:90, isMealCandidate:si===1});
+    stops.push({name:s, type:\'sight', icon:'📍', distMi:Math.floor(Math.random()*8+3), dwell:90, isMealCandidate:si===1});
   });
 
   // Overnight stop
@@ -2794,12 +2794,12 @@ function renderTravelStops() {
   // Warning banner
   const warn = document.getElementById('tv-warning');
   if(late && minsLate>15){
-    warn.classList.add('show');
+    warn.classList.add(\'show');
     document.getElementById('tv-warning-msg').textContent =
       lang==='ko'
         ? '⏰ '+minsLate+'분 지연 예상. 일정 단축이 필요합니다.'
         : '⏰ Running '+minsLate+' min late. Consider skipping optional stops to reach your destination by '+timeStr(arriveBy)+'.';
-  } else { warn.classList.remove('show'); }
+  } else { warn.classList.remove(\'show'); }
 
   stops.forEach((stop, idx)=>{
     const checkin = tvState.checkins[idx];
@@ -2872,7 +2872,7 @@ function renderTravelStops() {
         <div class="tv-stop-info">
           <div class="tv-stop-name">${stop.name}</div>
           <div class="tv-stop-times">
-            ${stop.type==='sight'?'<span>📍 sight · '+stop.dwell+' min visit</span>':''}
+            ${stop.type===\'sight'?'<span>📍 sight · '+stop.dwell+' min visit</span>':''}
             ${stop.type==='rest'?'<span>🛑 rest stop</span>':''}
             ${stop.type==='gas'?'<span>⛽ fuel stop</span>':''}
             ${etaDisplay}
@@ -2924,7 +2924,7 @@ function saveRouteLocally(){
   if(!routeData){ showToast('Generate a route first.'); return; }
   const origin = document.getElementById('origin').value.trim();
   const dest   = document.getElementById('dest').value.trim();
-  const startD = document.getElementById('start-date').value;
+  const startD = document.getElementById(\'start-date').value;
   const endD   = document.getElementById('end-date').value;
   const entry  = {
     id: Date.now(),
@@ -2951,7 +2951,7 @@ function loadSavedRoute(id){
   routeData = entry.routeData;
   document.getElementById('origin').value = entry.origin||'';
   document.getElementById('dest').value   = entry.dest||'';
-  if(entry.startD) document.getElementById('start-date').value = entry.startD;
+  if(entry.startD) document.getElementById(\'start-date').value = entry.startD;
   if(entry.endD)   document.getElementById('end-date').value   = entry.endD;
   updateDuration();
   // Restore waypoints
@@ -2969,13 +2969,13 @@ function deleteSavedRoute(id){
 }
 
 function renderSavedRoutes(){
-  const container = document.getElementById('saved-routes-list');
+  const container = document.getElementById(\'saved-routes-list');
   if(!container) return;
   if(savedRoutes.length===0){ container.innerHTML=''; return; }
   container.innerHTML = '<div style="font-size:12px;font-weight:700;color:var(--txt3);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">💾 Saved Routes</div>';
   savedRoutes.forEach(r=>{
     const card = document.createElement('div');
-    card.className='saved-route-card';
+    card.className=\'saved-route-card';
     card.style.marginBottom='8px';
     card.innerHTML=`
       <div class="src-icon">🗺️</div>
@@ -2998,8 +2998,8 @@ function renderSavedRoutes(){
 let selectedTags = new Set();
 
 function toggleTag(el, tag){
-  if(selectedTags.has(tag)){ selectedTags.delete(tag); el.classList.remove('selected'); }
-  else { selectedTags.add(tag); el.classList.add('selected'); }
+  if(selectedTags.has(tag)){ selectedTags.delete(tag); el.classList.remove(\'selected'); }
+  else { selectedTags.add(tag); el.classList.add(\'selected'); }
 }
 
 // Tag → suggested place types with real POI examples
@@ -3013,7 +3013,7 @@ const TAG_SUGGESTIONS = {
   park:         { icon:'🌳', label:'Parks & Nature',
     places:['State Park trail','National Forest recreation area','Botanical Garden','Riverside park'] },
   playground:   { icon:'🛝', label:'Kids Playgrounds',
-    places:['Family splash pad & playground','Children's discovery park','Adventure playground'] },
+    places:['Family splash pad & playground','Children\'s discovery park','Adventure playground'] },
   korean_church:{ icon:'⛪', label:'Korean Churches',
     places:['Korean Church (Sunday 11am service)','Korean American Presbyterian Church','Korean Baptist Church'] },
   korean_food:  { icon:'🍜', label:'Korean Restaurants',
@@ -3049,20 +3049,20 @@ function runAIWaypoints(){
 
   const resultDiv  = document.getElementById('ai-wp-result');
   const chipsDiv   = document.getElementById('ai-wp-chips');
-  resultDiv.classList.add('show');
+  resultDiv.classList.add(\'show');
   chipsDiv.innerHTML = '<span style="font-size:12px;color:var(--txt3)">✨ Generating suggestions…</span>';
 
   // Parse free text for keywords
   const textLower = text.toLowerCase();
   const extraTags = [];
   if(textLower.includes('beach') || textLower.includes('ocean') || textLower.includes('coast')) extraTags.push('beach');
-  if(textLower.includes('church') || textLower.includes('sunday') || textLower.includes('worship')) extraTags.push('korean_church','sunday_service');
+  if(textLower.includes('church') || textLower.includes(\'sunday') || textLower.includes('worship')) extraTags.push('korean_church',\'sunday_service');
   if(textLower.includes('korean') || textLower.includes('한국')) extraTags.push('korean_food','korean_church');
   if(textLower.includes('bbq') || textLower.includes('barbecue')) extraTags.push('bbq');
   if(textLower.includes('park') || textLower.includes('nature') || textLower.includes('hiking')) extraTags.push('park','national_park');
   if(textLower.includes('museum') || textLower.includes('history')) extraTags.push('museum');
   if(textLower.includes('coffee') || textLower.includes('cafe') || textLower.includes('café')) extraTags.push('cafe');
-  if(textLower.includes('outlet') || textLower.includes('shopping')) extraTags.push('outlet');
+  if(textLower.includes('outlet') || textLower.includes(\'shopping')) extraTags.push('outlet');
   if(textLower.includes('kids') || textLower.includes('children') || textLower.includes('playground')) extraTags.push('playground');
 
   const allTags = [...new Set([...tags, ...extraTags])];
@@ -3124,14 +3124,14 @@ function openSettings(){
   // Load saved keys into inputs (show masked)
   const owm    = localStorage.getItem('wt_owm_key')   || '';
   const places = localStorage.getItem('wt_places_key') || '';
-  document.getElementById('set-owm-key').value    = owm    ? owm.slice(0,6)+'••••••••••••••••••••••••••' : '';
-  document.getElementById('set-places-key').value = places ? places.slice(0,6)+'••••••••••••••••••••••••••' : '';
-  document.getElementById('settings-modal').classList.add('open');
+  document.getElementById(\'set-owm-key').value    = owm    ? owm.slice(0,6)+'••••••••••••••••••••••••••' : '';
+  document.getElementById(\'set-places-key').value = places ? places.slice(0,6)+'••••••••••••••••••••••••••' : '';
+  document.getElementById(\'settings-modal').classList.add('open');
 }
 
 function saveSettings(){
-  const owmInput    = document.getElementById('set-owm-key').value.trim();
-  const placesInput = document.getElementById('set-places-key').value.trim();
+  const owmInput    = document.getElementById(\'set-owm-key').value.trim();
+  const placesInput = document.getElementById(\'set-places-key').value.trim();
 
   // Only save if not the masked placeholder
   if(owmInput && !owmInput.includes('••')){
@@ -3143,7 +3143,7 @@ function saveSettings(){
     localStorage.setItem('wt_places_key', placesInput);
     window._PLACES_KEY = placesInput;
   }
-  closeModal('settings-modal');
+  closeModal(\'settings-modal');
   showToast(lang==='ko' ? '✅ API 키가 저장되었습니다 (브라우저에만)' : '✅ API keys saved to browser storage');
   // Re-render weather with new key
   if(routeData) renderWeather();
