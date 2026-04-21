@@ -951,70 +951,420 @@ function generateRoute(){
   }, 2200);
 }
 
-function buildUSRoute(origin, dest, wps, startDate, nights, maxMiPerDay, isCamping, isCar){
-  // Core stops: origin, waypoints, destination
-  const allStops=[origin, ...wps.map(w=>w.name), dest];
-  const days=[];
+/* ═══════════════════════════════════════════════════
+   US ROAD DISTANCE DATABASE
+   Real approximate driving distances (miles) between
+   major US cities + curated POIs for each city.
+═══════════════════════════════════════════════════ */
 
-  // Distribute stops across nights+1 days
-  // Simple approach: spread all stops proportionally
-  const totalStops=allStops.length;
-  const daysCount=nights+1;
-  const stopsPerDay=Math.max(1,Math.floor((totalStops-1)/daysCount));
+// Each city node: key = canonical name, lat/lon for haversine fallback
+const CITY_DATA = {
+  'Dallas, TX':         { lat:32.78, lon:-96.80, st:'TX', hwy:['I-20','I-30','I-35','I-45'] },
+  'Fort Worth, TX':     { lat:32.75, lon:-97.33, st:'TX', hwy:['I-20','I-30','I-35W'] },
+  'Houston, TX':        { lat:29.76, lon:-95.37, st:'TX', hwy:['I-10','I-45','I-69'] },
+  'San Antonio, TX':    { lat:29.42, lon:-98.49, st:'TX', hwy:['I-10','I-35','I-37'] },
+  'Austin, TX':         { lat:30.27, lon:-97.74, st:'TX', hwy:['I-35','US-183','TX-71'] },
+  'New Orleans, LA':    { lat:29.95, lon:-90.07, st:'LA', hwy:['I-10','I-12','US-90'] },
+  'Baton Rouge, LA':    { lat:30.45, lon:-91.15, st:'LA', hwy:['I-10','I-12','US-61'] },
+  'Jackson, MS':        { lat:32.30, lon:-90.18, st:'MS', hwy:['I-20','I-55'] },
+  'Meridian, MS':       { lat:32.37, lon:-88.70, st:'MS', hwy:['I-20','I-59'] },
+  'Birmingham, AL':     { lat:33.52, lon:-86.80, st:'AL', hwy:['I-20','I-59','I-65'] },
+  'Montgomery, AL':     { lat:32.36, lon:-86.30, st:'AL', hwy:['I-65','I-85','US-231'] },
+  'Mobile, AL':         { lat:30.69, lon:-88.04, st:'AL', hwy:['I-10','I-65','US-98'] },
+  'Atlanta, GA':        { lat:33.75, lon:-84.39, st:'GA', hwy:['I-20','I-75','I-85'] },
+  'Macon, GA':          { lat:32.84, lon:-83.63, st:'GA', hwy:['I-16','I-75','US-129'] },
+  'Savannah, GA':       { lat:32.08, lon:-81.10, st:'GA', hwy:['I-16','I-95','US-17'] },
+  'Tallahassee, FL':    { lat:30.44, lon:-84.28, st:'FL', hwy:['I-10','US-19','US-90'] },
+  'Jacksonville, FL':   { lat:30.33, lon:-81.66, st:'FL', hwy:['I-10','I-95','I-295'] },
+  'Gainesville, FL':    { lat:29.65, lon:-82.33, st:'FL', hwy:['I-75','US-441','US-27'] },
+  'Orlando, FL':        { lat:28.54, lon:-81.38, st:'FL', hwy:['I-4','I-95','Florida Tpk'] },
+  'Tampa, FL':          { lat:27.95, lon:-82.46, st:'FL', hwy:['I-4','I-75','I-275'] },
+  'Miami, FL':          { lat:25.77, lon:-80.19, st:'FL', hwy:['I-95','Florida Tpk','US-1'] },
+  'Memphis, TN':        { lat:35.15, lon:-90.05, st:'TN', hwy:['I-40','I-55','I-69'] },
+  'Nashville, TN':      { lat:36.17, lon:-86.78, st:'TN', hwy:['I-24','I-40','I-65'] },
+  'Knoxville, TN':      { lat:35.96, lon:-83.92, st:'TN', hwy:['I-40','I-75','I-81'] },
+  'Chattanooga, TN':    { lat:35.05, lon:-85.31, st:'TN', hwy:['I-24','I-75','US-27'] },
+  'Louisville, KY':     { lat:38.25, lon:-85.76, st:'KY', hwy:['I-64','I-65','I-71'] },
+  'Lexington, KY':      { lat:38.05, lon:-84.50, st:'KY', hwy:['I-64','I-75','US-60'] },
+  'Cincinnati, OH':     { lat:39.10, lon:-84.51, st:'OH', hwy:['I-71','I-74','I-75'] },
+  'Columbus, OH':       { lat:39.96, lon:-82.99, st:'OH', hwy:['I-70','I-71'] },
+  'Cleveland, OH':      { lat:41.50, lon:-81.69, st:'OH', hwy:['I-71','I-77','I-90'] },
+  'Pittsburgh, PA':     { lat:40.44, lon:-79.99, st:'PA', hwy:['I-70','I-76','I-79'] },
+  'Philadelphia, PA':   { lat:39.95, lon:-75.17, st:'PA', hwy:['I-76','I-95','US-1'] },
+  'New York, NY':       { lat:40.71, lon:-74.01, st:'NY', hwy:['I-78','I-87','I-95'] },
+  'Boston, MA':         { lat:42.36, lon:-71.06, st:'MA', hwy:['I-90','I-93','I-95'] },
+  'Washington, DC':     { lat:38.91, lon:-77.04, st:'DC', hwy:['I-66','I-95','I-270'] },
+  'Baltimore, MD':      { lat:39.29, lon:-76.61, st:'MD', hwy:['I-70','I-83','I-95'] },
+  'Richmond, VA':       { lat:37.54, lon:-77.44, st:'VA', hwy:['I-64','I-85','I-95'] },
+  'Charlotte, NC':      { lat:35.23, lon:-80.84, st:'NC', hwy:['I-77','I-85'] },
+  'Raleigh, NC':        { lat:35.78, lon:-78.64, st:'NC', hwy:['I-40','I-87','US-1'] },
+  'Columbia, SC':       { lat:34.00, lon:-81.03, st:'SC', hwy:['I-20','I-26','I-77'] },
+  'Charleston, SC':     { lat:32.78, lon:-79.93, st:'SC', hwy:['I-17','I-26','US-17'] },
+  'Kansas City, MO':    { lat:39.10, lon:-94.58, st:'MO', hwy:['I-35','I-70'] },
+  'St. Louis, MO':      { lat:38.63, lon:-90.20, st:'MO', hwy:['I-44','I-55','I-64','I-70'] },
+  'Chicago, IL':        { lat:41.85, lon:-87.65, st:'IL', hwy:['I-55','I-57','I-80','I-90'] },
+  'Indianapolis, IN':   { lat:39.77, lon:-86.16, st:'IN', hwy:['I-65','I-69','I-70','I-74'] },
+  'Detroit, MI':        { lat:42.33, lon:-83.05, st:'MI', hwy:['I-75','I-94','I-96'] },
+  'Minneapolis, MN':    { lat:44.98, lon:-93.27, st:'MN', hwy:['I-35','I-94'] },
+  'Milwaukee, WI':      { lat:43.04, lon:-87.91, st:'WI', hwy:['I-43','I-94'] },
+  'Denver, CO':         { lat:39.74, lon:-104.98, st:'CO', hwy:['I-25','I-70','I-76'] },
+  'Colorado Springs, CO':{ lat:38.83, lon:-104.82, st:'CO', hwy:['I-25','US-24'] },
+  'Albuquerque, NM':    { lat:35.08, lon:-106.65, st:'NM', hwy:['I-25','I-40','I-40'] },
+  'El Paso, TX':        { lat:31.76, lon:-106.49, st:'TX', hwy:['I-10','I-25','US-54'] },
+  'Tucson, AZ':         { lat:32.22, lon:-110.97, st:'AZ', hwy:['I-10','I-19','US-80'] },
+  'Phoenix, AZ':        { lat:33.45, lon:-112.07, st:'AZ', hwy:['I-10','I-17','I-40'] },
+  'Las Vegas, NV':      { lat:36.17, lon:-115.14, st:'NV', hwy:['I-15','US-93','US-95'] },
+  'Los Angeles, CA':    { lat:34.05, lon:-118.24, st:'CA', hwy:['I-5','I-10','I-405'] },
+  'San Diego, CA':      { lat:32.72, lon:-117.16, st:'CA', hwy:['I-5','I-8','CA-94'] },
+  'San Francisco, CA':  { lat:37.77, lon:-122.42, st:'CA', hwy:['I-80','US-101','I-280'] },
+  'Sacramento, CA':     { lat:38.58, lon:-121.49, st:'CA', hwy:['I-5','I-80','US-50'] },
+  'Portland, OR':       { lat:45.52, lon:-122.68, st:'OR', hwy:['I-5','I-84','US-26'] },
+  'Seattle, WA':        { lat:47.61, lon:-122.33, st:'WA', hwy:['I-5','I-90','I-405'] },
+  'Boise, ID':          { lat:43.62, lon:-116.20, st:'ID', hwy:['I-84','US-20','US-26'] },
+  'Salt Lake City, UT': { lat:40.76, lon:-111.89, st:'UT', hwy:['I-15','I-80','I-215'] },
+  'Shreveport, LA':     { lat:32.52, lon:-93.75, st:'LA', hwy:['I-20','I-49','US-71'] },
+  'Little Rock, AR':    { lat:34.75, lon:-92.29, st:'AR', hwy:['I-30','I-40','I-430'] },
+  'Oklahoma City, OK':  { lat:35.47, lon:-97.52, st:'OK', hwy:['I-35','I-40','I-44'] },
+  'Tulsa, OK':          { lat:36.15, lon:-95.99, st:'OK', hwy:['I-44','I-244','US-75'] },
+  'Wichita, KS':        { lat:37.69, lon:-97.34, st:'KS', hwy:['I-35','I-135','US-54'] },
+  'Amarillo, TX':       { lat:35.22, lon:-101.83, st:'TX', hwy:['I-27','I-40','US-87'] },
+  'Lubbock, TX':        { lat:33.58, lon:-101.85, st:'TX', hwy:['I-27','US-84','US-87'] },
+  'Corpus Christi, TX': { lat:27.80, lon:-97.40, st:'TX', hwy:['I-37','US-77','US-181'] },
+  'Pensacola, FL':      { lat:30.42, lon:-87.22, st:'FL', hwy:['I-10','US-29','US-98'] },
+  'Biloxi, MS':         { lat:30.40, lon:-88.88, st:'MS', hwy:['I-10','I-110','US-90'] },
+  'Lake Charles, LA':   { lat:30.23, lon:-93.22, st:'LA', hwy:['I-10','I-210','US-171'] },
+  'Lafayette, LA':      { lat:30.22, lon:-92.02, st:'LA', hwy:['I-10','I-49','US-90'] },
+};
 
-  let stopIdx=0;
-  for(let d=0;d<daysCount;d++){
-    const dayDate=new Date(startDate); dayDate.setDate(startDate.getDate()+d);
-    const from=allStops[Math.min(stopIdx, totalStops-1)];
-    const to=allStops[Math.min(stopIdx+stopsPerDay, totalStops-1)];
-    stopIdx+=stopsPerDay;
+// Curated real POIs for each major city
+const CITY_POIS = {
+  'Dallas, TX':       { sights:['Sixth Floor Museum (JFK)','Deep Ellum Arts District','Dallas Arboretum','Perot Museum of Nature and Science'], food:['Pecan Lodge BBQ','Ellen\'s Southern Kitchen','Al Biernat\'s'], rest:['Post Oak Travel Plaza (I-45)','Pilot Travel Center (I-20 E)'], gas:['Buc-ee\'s (I-45, Ennis)'] },
+  'Houston, TX':      { sights:['Space Center Houston','Museum of Fine Arts','Houston Zoo','The Galleria'], food:['Killen\'s BBQ (Pearland)','Hugo\'s Mexican','Goode Co. Seafood'], rest:['Texas Travel Info Center (I-10)','Flying J (I-45 S)'], gas:['Buc-ee\'s (I-10, Luling)'] },
+  'San Antonio, TX':  { sights:['The Alamo','River Walk','San Antonio Zoo','Natural Bridge Caverns'], food:['Mi Tierra Café','Boudro\'s on the Riverwalk','The County Line BBQ'], rest:['San Antonio Visitor Center','Love\'s Travel Stop (I-35)'], gas:['H-E-B Gas (I-35 & Loop 410)'] },
+  'New Orleans, LA':  { sights:['French Quarter & Bourbon St.','Garden District Walking Tour','WWII Museum','Audubon Zoo'], food:['Café Du Monde (Beignets)','Dooky Chase\'s Restaurant','Commander\'s Palace'], rest:['Louisiana Welcome Center (I-10)','Petro Travel Plaza'], gas:['Chevron (I-10 & Veterans Blvd)'] },
+  'Biloxi, MS':       { sights:['Biloxi Shrimping Trip','Gulf Islands National Seashore','Beauvoir – Jefferson Davis Home','Biloxi Lighthouse'], food:['Mary Mahoney\'s Old French House','Half Shell Oyster House','Shaggy\'s Biloxi Beach'], rest:['Mississippi Welcome Center (I-10)'], gas:['Murphy USA (US-90)'] },
+  'Mobile, AL':       { sights:['USS Alabama Battleship Memorial','Gulf Coast Exploreum','Historic Fort Condé'], food:['Wintzell\'s Oyster House','Spot of Tea','Dauphin\'s'], rest:['Alabama Welcome Center (I-10)'], gas:['Raceway (I-65 & Airport Blvd)'] },
+  'Pensacola, FL':    { sights:['Pensacola Beach','National Naval Aviation Museum','Fort Pickens','Palafox Street'], food:['Jerry\'s Drive-In','The Fish House','Dharma Blue'], rest:['Florida Welcome Center (I-10)','Pilot Flying J (I-10)'], gas:['RaceTrac (US-98)'] },
+  'Tallahassee, FL':  { sights:['Florida State Capitol','Alfred B. Maclay Gardens','Mission San Luis'], food:['Whit\'s Frozen Custard','Kool Beanz Café','Canopy Road Café'], rest:['Tallahassee Rest Area (I-10)'], gas:['Gate (US-90)'] },
+  'Jacksonville, FL': { sights:['Fort Caroline National Memorial','Riverside Arts Market','Cummer Museum'], food:['bb\'s Restaurant & Bar','Clark\'s Fish Camp','Intuition Ale Works'], rest:['Jacksonville Welcome Center (I-95)'], gas:['Wawa (I-95 & Beach Blvd)'] },
+  'Orlando, FL':      { sights:['Walt Disney World','Universal Studios Florida','Kennedy Space Center','ICON Park'], food:['The BOATHOUSE (Disney Springs)','Christner\'s Prime Steak','Bonefish Grill'], rest:['Florida Turnpike Service Plaza','Sunoco (I-4)'], gas:['Wawa (I-4 & US-192)'] },
+  'Atlanta, GA':      { sights:['Georgia Aquarium','Martin Luther King Jr. NHS','World of Coca-Cola','Stone Mountain Park'], food:['Fox Bros. Bar-B-Q','Bacchanalia','The Optimist'], rest:['Georgia Visitor Center (I-75)','Pilot Flying J'], gas:['RaceTrac (I-85 & Flat Shoals)'] },
+  'Birmingham, AL':   { sights:['Birmingham Civil Rights Institute','Vulcan Park & Museum','Barber Motorsports Museum'], food:['Saw\'s BBQ','Highlands Bar & Grill','Chez Fonfon'], rest:['Alabama Welcome Center (I-20)'], gas:['Murphy USA (I-20 & Cahaba Rd)'] },
+  'Memphis, TN':      { sights:['Graceland','National Civil Rights Museum','Beale Street','Sun Studio'], food:['Central BBQ','Gus\'s Fried Chicken','The Rendezvous'], rest:['Memphis Visitor Center','Pilot Flying J (I-40)'], gas:['Love\'s (I-40 & Whitten Rd)'] },
+  'Nashville, TN':    { sights:['Country Music Hall of Fame','The Grand Ole Opry','Ryman Auditorium','Centennial Park & Parthenon'], food:['Prince\'s Hot Chicken','Husk Nashville','The Catbird Seat'], rest:['Tennessee Welcome Center (I-24)','Love\'s Travel Stop (I-40)'], gas:['Pilot (I-65 & Old Hickory Blvd)'] },
+  'Charlotte, NC':    { sights:['NASCAR Hall of Fame','Mint Museum Uptown','Freedom Park'], food:['Seoul Food Meat Co.','Kindred','Kid Cashew'], rest:['North Carolina Welcome Center (I-85)'], gas:['Harris Teeter Gas (I-485)'] },
+  'Miami, FL':        { sights:['South Beach Art Deco District','Wynwood Walls','Vizcaya Museum','Everglades National Park'], food:['Joe\'s Stone Crab','Versailles Cuban Restaurant','Bazaar by José Andrés'], rest:['FL Turnpike Service Plaza (Homestead)'], gas:['Chevron (US-1 & Brickell)'] },
+  'Tampa, FL':        { sights:['Busch Gardens Tampa','Tampa Riverwalk','Ybor City Historic District','Florida Aquarium'], food:['Bern\'s Steak House','Columbia Restaurant (Ybor City)','The Wimauma'], rest:['Florida Welcome Center (I-75)'], gas:['Wawa (I-275 & Gandy Blvd)'] },
+};
 
-    // Estimate miles between stops (rough heuristic for demo; real would use Maps API)
-    const estMiles = from===to ? 0 : Math.floor(Math.random()*180+80);
-    const estHrs = (estMiles/65).toFixed(1);
-    const isLast=(d===daysCount-1);
+// Directed edge table: [cityA, cityB, miles, hours, highway, midpoint_pois]
+// Covers the most-traveled US interstate corridors
+const ROAD_EDGES = [
+  // Texas
+  ['Dallas, TX','Fort Worth, TX',32,0.5,'I-30',[]],
+  ['Dallas, TX','Houston, TX',239,3.5,'I-45',['Corsicana, TX','Huntsville, TX']],
+  ['Dallas, TX','San Antonio, TX',274,4.0,'I-35',['Waco, TX','Austin, TX']],
+  ['Dallas, TX','Austin, TX',195,3.0,'I-35',['Waco, TX']],
+  ['Dallas, TX','Shreveport, LA',188,2.8,'I-20',['Marshall, TX']],
+  ['Dallas, TX','Oklahoma City, OK',206,3.0,'I-35',['Gainesville, TX','Ardmore, OK']],
+  ['Dallas, TX','Amarillo, TX',362,5.2,'I-40',['Abilene, TX','Childress, TX']],
+  ['Dallas, TX','Jackson, MS',412,6.0,'I-20',['Shreveport, LA','Vicksburg, MS']],
+  ['Dallas, TX','Little Rock, AR',320,4.7,'I-30',['Texarkana, TX']],
+  ['Houston, TX','San Antonio, TX',197,2.8,'I-10',['San Marcos, TX','New Braunfels, TX']],
+  ['Houston, TX','New Orleans, LA',348,5.0,'I-10',['Lake Charles, LA','Lafayette, LA','Baton Rouge, LA']],
+  ['Houston, TX','Beaumont, TX',85,1.3,'I-10',[]],
+  ['San Antonio, TX','El Paso, TX',549,7.5,'I-10',['Ozona, TX','Fort Stockton, TX']],
+  ['Austin, TX','San Antonio, TX',80,1.2,'I-35',[]],
+  ['Austin, TX','Houston, TX',162,2.5,'US-290 / US-71',['La Grange, TX']],
+  ['Amarillo, TX','Albuquerque, NM',286,4.0,'I-40',['Tucumcari, NM']],
+  ['El Paso, TX','Albuquerque, NM',267,3.8,'I-10/I-25',['Las Cruces, NM']],
+  ['El Paso, TX','Tucson, AZ',270,3.7,'I-10',['Lordsburg, NM','Deming, NM']],
+  // Gulf Coast corridor: TX → FL
+  ['Houston, TX','Baton Rouge, LA',265,3.8,'I-10',['Lake Charles, LA','Lafayette, LA']],
+  ['New Orleans, LA','Biloxi, MS',90,1.3,'I-10',['Bay St. Louis, MS']],
+  ['Biloxi, MS','Mobile, AL',60,0.9,'I-10',[]],
+  ['Mobile, AL','Pensacola, FL',59,0.9,'I-10',[]],
+  ['Pensacola, FL','Tallahassee, FL',197,2.8,'I-10',['Crestview, FL','Defuniak Springs, FL']],
+  ['Tallahassee, FL','Jacksonville, FL',162,2.3,'I-10',['Lake City, FL']],
+  ['Jacksonville, FL','Orlando, FL',142,2.1,'I-95 / I-4',['Daytona Beach, FL']],
+  ['Jacksonville, FL','Gainesville, FL',70,1.0,'I-75',[]],
+  ['Gainesville, FL','Orlando, FL',111,1.6,'I-75 / Florida Tpk',['Ocala, FL']],
+  ['Orlando, FL','Tampa, FL',84,1.3,'I-4',['Lakeland, FL']],
+  ['Orlando, FL','Miami, FL',236,3.4,'Florida Tpk',['Fort Pierce, FL','Fort Lauderdale, FL']],
+  ['Tampa, FL','Miami, FL',281,3.9,'I-75 / Alligator Alley',['Naples, FL','Fort Lauderdale, FL']],
+  // Southeast
+  ['Atlanta, GA','Birmingham, AL',147,2.2,'I-20',['Anniston, AL']],
+  ['Atlanta, GA','Nashville, TN',249,3.7,'I-24',['Chattanooga, TN']],
+  ['Atlanta, GA','Charlotte, NC',246,3.7,'I-85',['Greenville, SC','Spartanburg, SC']],
+  ['Atlanta, GA','Macon, GA',83,1.2,'I-75',[]],
+  ['Atlanta, GA','Savannah, GA',249,3.7,'I-16',['Macon, GA']],
+  ['Atlanta, GA','Jacksonville, FL',348,5.0,'I-75',['Valdosta, GA']],
+  ['Atlanta, GA','Tallahassee, FL',274,4.0,'I-75',['Valdosta, GA']],
+  ['Birmingham, AL','Montgomery, AL',88,1.3,'I-65',[]],
+  ['Birmingham, AL','Nashville, TN',190,2.8,'I-65',['Cullman, AL','Decatur, AL']],
+  ['Birmingham, AL','Memphis, TN',239,3.4,'I-22/US-78',['Tupelo, MS']],
+  ['Montgomery, AL','Mobile, AL',169,2.4,'I-65',['Evergreen, AL']],
+  ['Mobile, AL','New Orleans, LA',144,2.0,'I-10',['Bay St. Louis, MS']],
+  ['Mobile, AL','Atlanta, GA',312,4.5,'I-65/I-20',['Birmingham, AL']],
+  ['Macon, GA','Savannah, GA',165,2.4,'I-16',[]],
+  ['Savannah, GA','Jacksonville, FL',140,2.0,'I-95',['Brunswick, GA']],
+  ['Charlotte, NC','Raleigh, NC',167,2.5,'I-85/US-1',[]],
+  ['Charlotte, NC','Columbia, SC',94,1.4,'I-77',[]],
+  ['Columbia, SC','Charleston, SC',113,1.6,'I-26',[]],
+  ['Columbia, SC','Savannah, GA',160,2.4,'I-26/I-95',[]],
+  ['Nashville, TN','Memphis, TN',210,3.0,'I-40',['Jackson, TN']],
+  ['Nashville, TN','Louisville, KY',176,2.6,'I-65',['Bowling Green, KY']],
+  ['Nashville, TN','Knoxville, TN',178,2.6,'I-40',['Cookeville, TN']],
+  ['Nashville, TN','Chattanooga, TN',135,2.0,'I-24',[]],
+  ['Memphis, TN','Jackson, MS',210,3.0,'I-55',['Grenada, MS']],
+  ['Memphis, TN','Little Rock, AR',137,2.0,'I-40',[]],
+  ['Memphis, TN','St. Louis, MO',284,4.0,'I-55',['Cape Girardeau, MO']],
+  ['Jackson, MS','Meridian, MS',90,1.3,'I-20',[]],
+  ['Jackson, MS','New Orleans, LA',186,2.7,'I-55',['Hammond, LA']],
+  ['Jackson, MS','Birmingham, AL',239,3.5,'I-20',['Meridian, MS']],
+  ['Meridian, MS','Birmingham, AL',150,2.2,'I-20',['Tuscaloosa, AL']],
+  ['Baton Rouge, LA','New Orleans, LA',80,1.2,'I-10',[]],
+  ['Shreveport, LA','New Orleans, LA',325,4.7,'I-49/I-10',['Lafayette, LA','Baton Rouge, LA']],
+  ['Shreveport, LA','Dallas, TX',188,2.8,'I-20',['Marshall, TX']],
+  ['Shreveport, LA','Jackson, MS',190,2.7,'I-20',['Vicksburg, MS']],
+  ['Little Rock, AR','Jackson, MS',264,3.8,'I-55',['Memphis, TN']],
+  ['Little Rock, AR','St. Louis, MO',352,5.0,'I-55/I-40',['Memphis, TN']],
+  ['Oklahoma City, OK','Dallas, TX',206,3.0,'I-35',['Gainesville, TX']],
+  ['Oklahoma City, OK','Tulsa, OK',100,1.5,'I-44',[]],
+  ['Oklahoma City, OK','Kansas City, MO',337,4.8,'I-35',['Wichita, KS']],
+  ['Kansas City, MO','St. Louis, MO',248,3.5,'I-70',['Columbia, MO']],
+  ['Kansas City, MO','Chicago, IL',499,7.0,'I-55',['St. Louis, MO']],
+  ['St. Louis, MO','Indianapolis, IN',242,3.5,'I-70',['Terre Haute, IN']],
+  ['St. Louis, MO','Nashville, TN',309,4.5,'I-24',['Paducah, KY']],
+  ['Chicago, IL','Indianapolis, IN',181,2.7,'I-65',['Gary, IN']],
+  ['Chicago, IL','Milwaukee, WI',92,1.4,'I-94',[]],
+  ['Chicago, IL','Detroit, MI',281,4.0,'I-94',['Kalamazoo, MI','Ann Arbor, MI']],
+  ['Indianapolis, IN','Louisville, KY',112,1.7,'I-65',[]],
+  ['Indianapolis, IN','Cincinnati, OH',111,1.7,'I-74',[]],
+  ['Indianapolis, IN','Columbus, OH',175,2.6,'I-70',[]],
+  ['Louisville, KY','Cincinnati, OH',100,1.5,'I-71',[]],
+  ['Louisville, KY','Nashville, TN',176,2.6,'I-65',['Bowling Green, KY']],
+  ['Cincinnati, OH','Columbus, OH',107,1.6,'I-71',[]],
+  ['Cincinnati, OH','Pittsburgh, PA',304,4.4,'I-76',[]],
+  ['Columbus, OH','Pittsburgh, PA',186,2.7,'I-70',[]],
+  ['Columbus, OH','Cleveland, OH',144,2.1,'I-71',[]],
+  ['Cleveland, OH','Pittsburgh, PA',130,1.9,'I-76/I-79',[]],
+  ['Pittsburgh, PA','Philadelphia, PA',305,4.5,'I-76 (Tpk)',['Harrisburg, PA']],
+  ['Pittsburgh, PA','Washington, DC',244,3.5,'I-70/I-270',['Hagerstown, MD']],
+  ['Philadelphia, PA','New York, NY',95,1.5,'I-95/NJ Tpk',['Newark, NJ']],
+  ['Philadelphia, PA','Baltimore, MD',101,1.5,'I-95',['Wilmington, DE']],
+  ['Philadelphia, PA','Washington, DC',140,2.1,'I-95',['Baltimore, MD']],
+  ['New York, NY','Boston, MA',215,3.5,'I-95',['Providence, RI']],
+  ['Washington, DC','Richmond, VA',110,1.6,'I-95',['Fredericksburg, VA']],
+  ['Washington, DC','Baltimore, MD',40,0.6,'I-95/I-395',[]],
+  ['Richmond, VA','Charlotte, NC',334,4.9,'I-85',['Durham, NC','Raleigh, NC']],
+  ['Richmond, VA','Washington, DC',110,1.6,'I-95',[]],
+  // Mountain West
+  ['Denver, CO','Colorado Springs, CO',68,1.0,'I-25',[]],
+  ['Denver, CO','Albuquerque, NM',449,6.2,'I-25',['Santa Fe, NM']],
+  ['Denver, CO','Salt Lake City, UT',524,7.5,'I-70/I-15',['Green River, UT']],
+  ['Denver, CO','Kansas City, MO',601,8.5,'I-70',['Salina, KS','Topeka, KS']],
+  ['Salt Lake City, UT','Las Vegas, NV',421,5.8,'I-15',['St. George, UT']],
+  ['Salt Lake City, UT','Boise, ID',340,4.8,'I-84',['Twin Falls, ID']],
+  ['Las Vegas, NV','Los Angeles, CA',270,3.8,'I-15',['Barstow, CA']],
+  ['Las Vegas, NV','Phoenix, AZ',297,4.2,'US-93',['Kingman, AZ']],
+  ['Phoenix, AZ','Tucson, AZ',112,1.6,'I-10',[]],
+  ['Phoenix, AZ','Los Angeles, CA',372,5.3,'I-10',['Palm Springs, CA']],
+  ['Phoenix, AZ','Albuquerque, NM',466,6.5,'I-10/I-25',['Tucson, AZ','El Paso, TX']],
+  ['Tucson, AZ','Los Angeles, CA',487,6.8,'I-10',['Phoenix, AZ','Palm Springs, CA']],
+  ['Los Angeles, CA','San Diego, CA',120,1.8,'I-5/I-405',['Carlsbad, CA']],
+  ['Los Angeles, CA','San Francisco, CA',381,5.5,'I-5 or US-101',['Bakersfield, CA','Fresno, CA']],
+  ['San Francisco, CA','Sacramento, CA',90,1.3,'I-80',[]],
+  ['Sacramento, CA','Portland, OR',581,8.5,'I-5',['Redding, CA','Medford, OR']],
+  ['Portland, OR','Seattle, WA',174,2.8,'I-5',['Tacoma, WA']],
+  ['Portland, OR','Boise, ID',428,6.0,'I-84',['La Grande, OR']],
+  ['Seattle, WA','Boise, ID',496,7.0,'I-90/I-84',['Spokane, WA','Pendleton, OR']],
+];
 
-    // Overnight recommendation
-    const overnight = isLast ? null : isCamping ? suggestCampground(to) : suggestHotel(to);
+// Build bidirectional adjacency list with weights
+const GRAPH = {};
+ROAD_EDGES.forEach(([a,b,miles,hrs,hwy,pois])=>{
+  if(!GRAPH[a]) GRAPH[a]={};
+  if(!GRAPH[b]) GRAPH[b]={};
+  GRAPH[a][b]={miles,hrs,hwy,pois};
+  GRAPH[b][a]={miles,hrs,hwy,pois};
+});
 
-    // AI-suggested sights
-    const sights = suggestSights(to, category, isCamping);
+// Haversine distance fallback (in miles)
+function haversine(a,b){
+  const cd=CITY_DATA[a], cd2=CITY_DATA[b];
+  if(!cd||!cd2) return 500;
+  const R=3958.8, dLat=(cd2.lat-cd.lat)*Math.PI/180, dLon=(cd2.lon-cd.lon)*Math.PI/180;
+  const sin1=Math.sin(dLat/2), sin2=Math.sin(dLon/2);
+  const c=2*Math.asin(Math.sqrt(sin1*sin1+Math.cos(cd.lat*Math.PI/180)*Math.cos(cd2.lat*Math.PI/180)*sin2*sin2));
+  return Math.round(R*c*1.25); // 1.25x for road vs. straight-line
+}
 
-    // Rest area
-    const restArea = isCar&&estMiles>100 ? suggestRestArea(from,to) : null;
+// Dijkstra shortest path (by miles)
+function dijkstra(start, end){
+  // Normalize city names
+  start=normCity(start); end=normCity(end);
+  if(start===end) return {path:[start],miles:0,hrs:0,segments:[]};
 
-    days.push({ day:d+1, date:dayDate, from, to, estMiles, estHrs, isLast, overnight, sights, restArea });
+  const dist={}, prev={}, segInfo={};
+  const visited=new Set();
+  const nodes=Object.keys({...GRAPH,...(GRAPH[end]?{}:{[end]:{}})});
+  nodes.forEach(n=>dist[n]=Infinity); dist[start]=0;
+
+  // Priority queue (simple array for small graphs)
+  const pq=[[0,start]];
+  while(pq.length){
+    pq.sort((a,b)=>a[0]-b[0]);
+    const [d,u]=pq.shift();
+    if(visited.has(u)) continue; visited.add(u);
+    if(u===end) break;
+    if(!GRAPH[u]) continue;
+    for(const [v,edge] of Object.entries(GRAPH[u])){
+      const nd=d+edge.miles;
+      if(nd<(dist[v]||Infinity)){ dist[v]=nd; prev[v]=u; segInfo[v]=edge; pq.push([nd,v]); }
+    }
   }
 
-  const totalMiles=days.reduce((s,d)=>s+d.estMiles,0);
-  return { origin, dest, allStops, days, totalMiles, nights, isCamping };
+  // Reconstruct path
+  if(dist[end]===Infinity){
+    // No known path — use haversine direct
+    const miles=haversine(start,end);
+    return {path:[start,end],miles,hrs:+(miles/65).toFixed(1),segments:[{from:start,to:end,miles,hrs:+(miles/65).toFixed(1),hwy:'Interstate',pois:[]}]};
+  }
+  const path=[end]; let cur=end;
+  while(prev[cur]){ path.unshift(prev[cur]); cur=prev[cur]; }
+  const segments=[];
+  for(let i=0;i<path.length-1;i++){
+    const e=GRAPH[path[i]][path[i+1]]||{miles:haversine(path[i],path[i+1]),hrs:0,hwy:'',pois:[]};
+    segments.push({from:path[i],to:path[i+1],miles:e.miles,hrs:e.hrs|+(e.miles/65).toFixed(1),hwy:e.hwy,pois:e.pois||[]});
+  }
+  const totalMiles=segments.reduce((s,sg)=>s+sg.miles,0);
+  const totalHrs=+(totalMiles/65).toFixed(1);
+  return {path,miles:totalMiles,hrs:totalHrs,segments};
+}
+
+// Normalize a typed city name to a known CITY_DATA key
+function normCity(input){
+  if(!input) return input;
+  const lower=input.toLowerCase().trim();
+  // Exact match
+  const exact=Object.keys(CITY_DATA).find(k=>k.toLowerCase()===lower);
+  if(exact) return exact;
+  // Partial match (city name before comma)
+  const partial=Object.keys(CITY_DATA).find(k=>lower.includes(k.split(',')[0].toLowerCase()) || k.split(',')[0].toLowerCase().includes(lower.split(',')[0].toLowerCase()));
+  if(partial) return partial;
+  return input; // Unknown — keep as-is
+}
+
+function buildUSRoute(origin, dest, wps, startDate, nights, maxMiPerDay, isCamping, isCar){
+  const normOrigin=normCity(origin)||origin;
+  const normDest=normCity(dest)||dest;
+
+  // Build full stop list: origin → waypoints → dest
+  const wpCities=wps.map(w=>normCity(w.name)||w.name);
+  const masterList=[normOrigin,...wpCities,normDest];
+
+  // Find shortest paths between consecutive stops
+  let allSegments=[];
+  let fullPath=[normOrigin];
+  for(let i=0;i<masterList.length-1;i++){
+    const result=dijkstra(masterList[i],masterList[i+1]);
+    allSegments=allSegments.concat(result.segments);
+    fullPath=fullPath.concat(result.path.slice(1));
+  }
+
+  // De-duplicate consecutive identical cities
+  const dedupPath=fullPath.filter((c,i)=>i===0||c!==fullPath[i-1]);
+  const totalMiles=allSegments.reduce((s,sg)=>s+sg.miles,0);
+
+  // --- SMART DAY SPLITTER ---
+  // Respect maxMiPerDay limit. Each day = cumulative miles until limit hit.
+  const daysCount = nights+1;
+  const days=[];
+  let segIdx=0, dayMiles=0, dayFrom=normOrigin, daySegments=[];
+  let dayStops=[]; // intermediate cities on this day
+  let currentDay=1;
+  const dayDate=(d)=>{ const dd=new Date(startDate); dd.setDate(startDate.getDate()+d-1); return dd; };
+
+  // Flatten all segments into ordered list
+  for(let s=0;s<allSegments.length;s++){
+    const seg=allSegments[s];
+    if(dayMiles+seg.miles <= maxMiPerDay || dayMiles===0){
+      dayMiles+=seg.miles;
+      daySegments.push(seg);
+      // Add pois from this segment as waythrough stops
+      if(seg.pois && seg.pois.length) dayStops=dayStops.concat(seg.pois.slice(0,1));
+    } else {
+      // Finish this day at end of last segment
+      const dayTo=daySegments[daySegments.length-1]?.to || normOrigin;
+      const isLast=(currentDay===daysCount);
+      const overnight=isLast?null:isCamping?suggestCampground(dayTo):suggestHotel(dayTo);
+      const sights=getCitySights(dayTo);
+      const restStop=dayMiles>150?getRestArea(dayFrom,dayTo,daySegments):null;
+      days.push({day:currentDay,date:dayDate(currentDay),from:dayFrom,to:dayTo,estMiles:Math.round(dayMiles),estHrs:+(dayMiles/65).toFixed(1),hwy:daySegments[0]?.hwy||'',isLast,overnight,sights,restStop,passThrough:dayStops});
+      currentDay++;
+      // Start new day
+      dayFrom=dayTo; dayMiles=seg.miles; daySegments=[seg]; dayStops=seg.pois?seg.pois.slice(0,1):[];
+    }
+  }
+  // Last accumulated day
+  if(daySegments.length>0){
+    const dayTo=normDest;
+    const isLast=true;
+    const sights=getCitySights(dayTo);
+    const restStop=dayMiles>150?getRestArea(dayFrom,dayTo,daySegments):null;
+    days.push({day:currentDay,date:dayDate(currentDay),from:dayFrom,to:dayTo,estMiles:Math.round(dayMiles),estHrs:+(dayMiles/65).toFixed(1),hwy:daySegments[0]?.hwy||'',isLast,overnight:null,sights,restStop,passThrough:dayStops});
+  }
+
+  // If we have fewer days than nights+1, spread them out (add zero-drive day at destination)
+  while(days.length<daysCount){
+    const last=days[days.length-1];
+    days[days.length-1].isLast=false;
+    days[days.length-1].overnight=isCamping?suggestCampground(normDest):suggestHotel(normDest);
+    const extra={ day:days.length+1, date:dayDate(days.length+1), from:normDest, to:normDest, estMiles:0, estHrs:0, hwy:'', isLast:true, overnight:null, sights:getCitySights(normDest), restStop:null, passThrough:[] };
+    days.push(extra);
+  }
+
+  return { origin:normOrigin, dest:normDest, allStops:dedupPath, days, totalMiles:Math.round(totalMiles), nights, isCamping };
+}
+
+function getCitySights(city){
+  const cn=city.split(',')[0].trim();
+  const known=CITY_POIS[city];
+  if(known) return known.sights.slice(0,3);
+  // Generic fallback
+  const base=[];
+  if(category==='family') base.push(`${cn} Family Theme Park`,`${cn} Zoo & Aquarium`,`${cn} Children's Museum`);
+  else if(category==='camping') base.push(`${cn} State Park`,`${cn} National Forest Trail`,`${cn} Scenic Overlook`);
+  else if(category==='business') base.push(`${cn} Convention Center`,`${cn} Business District`);
+  else base.push(`${cn} Historic Downtown`,`${cn} Art Museum`,`${cn} Riverfront/Waterfront`);
+  return base;
+}
+
+function getRestArea(from, to, segs){
+  // Try to return a known rest area from the segments
+  for(const s of segs){ if(s.pois&&s.pois.length) return s.pois[0]; }
+  const hwy=segs[0]?.hwy||'Interstate';
+  const areas=['Welcome Center','Service Plaza','Travel Plaza','Rest Stop'];
+  return areas[Math.floor(Math.random()*areas.length)]+' on '+hwy;
 }
 
 function suggestHotel(city){
-  const brands=['Marriott','Hilton','Hyatt Place','Hampton Inn','Courtyard','Best Western','Holiday Inn','Comfort Inn','Embassy Suites'];
+  const cn=city.split(',')[0];
+  const brands=['Marriott','Hilton','Hyatt Place','Hampton Inn','Courtyard by Marriott','Best Western Plus','Holiday Inn Express','Comfort Suites','Embassy Suites'];
   const brand=brands[Math.floor(Math.random()*brands.length)];
-  const stars=(Math.random()*1.5+3.5).toFixed(1);
-  const price=Math.floor(Math.random()*100+99);
-  return {name:`${brand} ${city.split(',')[0]}`,stars,price:`$${price}`,type:'hotel'};
+  const stars=(Math.random()*0.8+3.8).toFixed(1);
+  const price=Math.floor(Math.random()*80+109);
+  return {name:`${brand} — ${cn}`,stars,price:`$${price}/night`,type:'hotel'};
 }
 function suggestCampground(city){
-  const names=['KOA Kampground','State Park Campground','National Forest Camp','RV Resort','Jellystone Park'];
-  const name=names[Math.floor(Math.random()*names.length)];
-  const price=Math.floor(Math.random()*30+25);
-  return {name:`${name} — ${city.split(',')[0]}`,stars:(Math.random()+4).toFixed(1),price:`$${price}/night`,type:'camp'};
-}
-function suggestSights(city, cat, isCamp){
   const cn=city.split(',')[0];
-  const base=[`${cn} Downtown`,`${cn} Historic District`];
-  if(cat==='family') base.push(`${cn} Children's Museum`,`${cn} Zoo`);
-  if(cat==='camping'||isCamp) base.push(`${cn} State Park`,`${cn} Scenic Trail`);
-  if(cat==='business') base.push(`${cn} Convention Center`);
-  return base.slice(0,3);
+  const names=['KOA Journey Kampground','State Park Campground','National Forest Campsite','Jellystone Park','Good Sam RV Resort'];
+  const name=names[Math.floor(Math.random()*names.length)];
+  const price=Math.floor(Math.random()*20+30);
+  return {name:`${name} — ${cn}`,stars:(Math.random()*0.6+4.1).toFixed(1),price:`$${price}/night`,type:'camp'};
 }
-function suggestRestArea(from, to){
-  const names=['Welcome Center','Service Plaza','Travel Plaza','Rest Stop','Scenic Overlook'];
-  return names[Math.floor(Math.random()*names.length)] + ' (I-' + (Math.floor(Math.random()*90+10)) + ')';
-}
+function suggestRestArea(from,to){ return getRestArea(from,to,[]); }
 
 /* ═══════════════════════════════════════════════════
    RENDER ROUTE UI
@@ -1039,20 +1389,65 @@ function renderRouteUI(){
     const dateStr=d.date.toLocaleDateString(lang==='ko'?'ko-KR':'en-US',{month:'short',day:'numeric'});
     const card=document.createElement('div'); card.className='route-day'; card.dataset.day=d.day;
     const isOpen=i===0;
+    // Build pass-through stops HTML
+    const ptHtml = (d.passThrough||[]).map(pt=>`
+      <div class="tl-stop">
+        <div class="tl-dot d-mid"></div>
+        <div class="stop-name">${pt}</div>
+        <div class="stop-meta"><span>🛣 ${lang==='ko'?'경유':'Pass through'}</span><span style="color:var(--sky);font-size:11px">${d.hwy}</span></div>
+      </div>`).join('');
+
+    // Build sights HTML
+    const sightsHtml = (d.sights||[]).map(s=>`
+      <div class="tl-stop">
+        <div class="tl-dot d-mid"></div>
+        <div class="stop-name">${s}</div>
+        <div class="stop-meta"><span>📍 ${lang==='ko'?'AI 추천':'AI Recommended'}</span></div>
+      </div>`).join('');
+
+    // Rest stop
+    const restHtml = d.restStop ? `
+      <div class="tl-stop">
+        <div class="tl-dot" style="color:#6366F1;background:#6366F1"></div>
+        <div class="stop-name">🛑 ${d.restStop}</div>
+        <div class="stop-meta"><span>${lang==='ko'?'휴게소 / 주유 추천':'Rest Area / Fuel Stop'}</span></div>
+      </div>` : '';
+
+    // Drive info chip
+    const driveChip = d.estMiles>0 ? `<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--sky-l);border-radius:var(--r-md);margin-bottom:14px;font-size:12px;color:var(--sky-d)">
+      🚗 <strong>${d.estMiles} mi</strong>&nbsp;·&nbsp;~${d.estHrs} hrs driving&nbsp;·&nbsp;<span style="color:var(--txt3)">${d.hwy||'Interstate'}</span>
+    </div>` : `<div style="padding:8px 12px;background:var(--teal-l);border-radius:var(--r-md);margin-bottom:14px;font-size:12px;color:var(--teal)">📍 ${lang==='ko'?'목적지 체류일':'Rest / Explore Day at Destination'}</div>`;
+
     card.innerHTML=`
       <div class="day-hdr" onclick="toggleDay(this)">
         <span class="day-num">${t('day_label')} ${d.day}</span>
-        <span class="day-title-t">${d.from===d.to?d.to:d.from+' → '+d.to} <span style="font-size:12px;color:var(--txt3)">(${dateStr})</span></span>
-        <span class="day-meta">${d.estMiles>0?d.estMiles+' mi · ~'+d.estHrs+'h':''}</span>
+        <span class="day-title-t">${d.from===d.to?'📍 '+d.to:d.from+' → '+d.to} <span style="font-size:12px;color:var(--txt3)">(${dateStr})</span></span>
+        <span class="day-meta">${d.estMiles>0?d.estMiles+' mi · ~'+d.estHrs+'h':lang==='ko'?'체류일':'Explore day'}</span>
         <span class="day-chev ${isOpen?'open':''}">▾</span>
       </div>
       <div class="day-body" ${isOpen?'':'style="display:none"'}>
+        ${driveChip}
         <div class="timeline">
-          <div class="tl-stop"><div class="tl-dot d-start"></div><div class="stop-name">${d.from}</div><div class="stop-meta"><span>🕗 ${lang==='ko'?'출발':'Depart'}</span></div></div>
-          ${d.restArea?`<div class="tl-stop"><div class="tl-dot d-mid"></div><div class="stop-name">${d.restArea}</div><div class="stop-meta"><span>🛑 Rest Area</span></div></div>`:''}
-          ${d.sights.map(s=>`<div class="tl-stop"><div class="tl-dot d-mid"></div><div class="stop-name">${s}</div><div class="stop-meta"><span>📍 AI ${lang==='ko'?'추천':'Recommended'}</span></div></div>`).join('')}
-          ${d.from!==d.to?`<div class="tl-stop"><div class="tl-dot ${d.isLast?'d-end':'d-stay'}"></div><div class="stop-name">${d.to}</div>
-            ${d.overnight?`<div class="stay-card"><div>${d.overnight.type==='camp'?'⛺':'🏨'}</div><div class="stay-info"><div class="stay-name">${d.overnight.name}</div><div class="stay-detail">★ ${d.overnight.stars} · Check-in 3:00 PM</div></div><div class="stay-price">${d.overnight.price}</div></div>`:''}
+          <div class="tl-stop">
+            <div class="tl-dot d-start"></div>
+            <div class="stop-name">${d.from}</div>
+            <div class="stop-meta"><span>🕗 ${lang==='ko'?'출발 (오전 8~9시 권장)':'Depart (8–9 AM recommended)'}</span></div>
+          </div>
+          ${restHtml}
+          ${ptHtml}
+          ${sightsHtml}
+          ${d.from!==d.to?`<div class="tl-stop">
+            <div class="tl-dot ${d.isLast?'d-end':'d-stay'}"></div>
+            <div class="stop-name">${d.to} ${d.isLast?'🏁':''}</div>
+            <div class="stop-meta"><span>${d.isLast?(lang==='ko'?'최종 목적지':'Final Destination'):(lang==='ko'?'오늘의 숙박지':'Tonight\'s stay')}</span></div>
+            ${d.overnight?`<div class="stay-card">
+              <div style="font-size:20px">${d.overnight.type==='camp'?'⛺':'🏨'}</div>
+              <div class="stay-info">
+                <div class="stay-name">${d.overnight.name}</div>
+                <div class="stay-detail">★ ${d.overnight.stars} · Check-in 3:00 PM</div>
+              </div>
+              <div class="stay-price">${d.overnight.price}</div>
+            </div>`:''}
           </div>`:''}
         </div>
         <div class="day-actions">
@@ -1105,32 +1500,41 @@ function renderWeather(){
 function renderPOIs(){
   if(!routeData) return;
   const isCamping=routeData.isCamping;
+  // Only show POIs for overnight/major stops (unique cities from day.to values)
+  const keyCities=[...new Set(routeData.days.map(d=>d.to))];
 
-  // Gas stations
+  // Gas stations — use known data or fallback brands
   const gasList=document.getElementById('gas-list'); gasList.innerHTML='';
-  const gasBrands=['Shell','Chevron','BP','ExxonMobil','Texaco','Valero','Marathon','Sunoco','Circle K','Pilot'];
-  routeData.allStops.slice(0,-1).forEach(city=>{
-    const brand=gasBrands[Math.floor(Math.random()*gasBrands.length)];
-    const price=(Math.random()*0.4+3.4).toFixed(2);
-    const mi=Math.floor(Math.random()*5+1);
+  const gasBrands=['Shell','Chevron','BP','ExxonMobil','Valero','Marathon','Sunoco','Circle K','Pilot Flying J','Buc-ee\'s','Love\'s Travel Stop'];
+  routeData.days.forEach(d=>{
+    const pois=CITY_POIS[d.to];
+    const gasName=pois?.gas?.[0] || `${gasBrands[Math.floor(Math.random()*gasBrands.length)]} — ${d.to.split(',')[0]}`;
+    const price=(Math.random()*0.35+3.35).toFixed(2);
     const id='gas-'+Math.random().toString(36).slice(2);
     const card=document.createElement('div'); card.className='poi-card';
-    card.innerHTML=`<div class="poi-name">⛽ ${brand} — ${city.split(',')[0]}</div><div class="poi-sub">${mi} mi ${lang==='ko'?'경로에서':'off route'}</div><div class="poi-price">$${price}/gal</div><div class="poi-actions"><button class="btn-add-route" id="${id}" onclick="addPOIToRoute(this,'${brand} ${city.split(',')[0]}')">${t('add_to_route')}</button></div>`;
+    card.innerHTML=`<div class="poi-name">⛽ ${gasName}</div><div class="poi-sub">${lang==='ko'?'경로 상 주유 추천':'Recommended fuel stop on route'} · ${d.hwy||'Interstate'}</div><div class="poi-price">~$${price}/gal</div><div class="poi-actions"><button class="btn-add-route" id="${id}" onclick="addPOIToRoute(this,'${gasName.replace(/'/g,"\\\'")}')">${t('add_to_route')}</button></div>`;
     gasList.appendChild(card);
   });
 
-  // Food
+  // Food & cafés — use real known spots first
   const foodList=document.getElementById('food-list'); foodList.innerHTML='';
-  const foods_en=[['Local Diner','Classic American breakfast'],['Roadside BBQ','Smoked meats & sides'],['Farm-to-Table Café','Fresh local ingredients'],['Craft Brewery + Kitchen','Local craft beer & food'],['Mom & Pop Pizzeria','Family-run, locally loved']];
-  const foods_ko=[['로컬 다이너','클래식 아메리칸 브런치'],['바베큐 전문점','훈제 고기 요리'],['팜투테이블 카페','신선한 로컬 식재료'],['크래프트 브루어리','수제 맥주 & 음식'],['피체리아','가족 운영 피자집']];
-  const foods=lang==='ko'?foods_ko:foods_en;
-  routeData.allStops.slice(0,-1).forEach((city,i)=>{
-    const f=foods[i%foods.length];
-    const rating=(Math.random()*1+4).toFixed(1);
-    const id='food-'+Math.random().toString(36).slice(2);
-    const card=document.createElement('div'); card.className='poi-card';
-    card.innerHTML=`<div class="poi-name">🍽 ${f[0]}</div><div class="poi-sub">${city.split(',')[0]} · ${f[1]}</div><div class="poi-actions"><span class="poi-rating">★ ${rating}</span><button class="btn-add-route" id="${id}" onclick="addPOIToRoute(this,'${f[0]} (${city.split(',')[0]})')">${t('add_to_route')}</button></div>`;
-    foodList.appendChild(card);
+  const genericFood_en=[['Local Diner','Classic American roadside breakfast'],['Roadside BBQ Shack','Slow-smoked meats & sides'],['Farm-to-Table Café','Seasonal local ingredients'],['Craft Brewery Kitchen','Regional craft beer & pub food'],['Southern Soul Kitchen','Comfort food done right']];
+  const genericFood_ko=[['로컬 다이너','클래식 아메리칸 조식'],['로드사이드 BBQ','훈제 고기 요리'],['팜투테이블 카페','신선한 로컬 식재료'],['크래프트 브루어리','수제 맥주 & 펍 음식'],['소울 푸드 레스토랑','진한 남부 가정식']];
+  const genericFood=lang==='ko'?genericFood_ko:genericFood_en;
+
+  routeData.days.forEach((d,i)=>{
+    const pois=CITY_POIS[d.to];
+    const knownFoods=pois?.food||[];
+    const cityName=d.to.split(',')[0];
+    // Show known spots + 1 generic
+    [...knownFoods, genericFood[i%genericFood.length][0]].slice(0,3).forEach((name,fi)=>{
+      const sub = fi<knownFoods.length ? `${cityName} · ${lang==='ko'?'현지 유명 맛집':'Local favorite'}` : `${cityName} · ${genericFood[i%genericFood.length][1]}`;
+      const rating=(Math.random()*0.8+4.1).toFixed(1);
+      const id='food-'+Math.random().toString(36).slice(2);
+      const card=document.createElement('div'); card.className='poi-card';
+      card.innerHTML=`<div class="poi-name">🍽 ${name}</div><div class="poi-sub">${sub}</div><div class="poi-actions"><span class="poi-rating">★ ${rating}</span><button class="btn-add-route" id="${id}" onclick="addPOIToRoute(this,'${name.replace(/'/g,"\\\'")}')">${t('add_to_route')}</button></div>`;
+      foodList.appendChild(card);
+    });
   });
 
   // Campgrounds
@@ -1138,15 +1542,16 @@ function renderPOIs(){
   if(isCamping){
     campCard.style.display='';
     const campList=document.getElementById('camp-list'); campList.innerHTML='';
-    const campTypes_en=['KOA Kampground','State Park Campground','National Forest Campsite','RV & Tent Resort'];
-    const campTypes_ko=['KOA 캠프장','주립공원 캠프장','국유림 캠프사이트','RV & 텐트 리조트'];
-    const campTypes=lang==='ko'?campTypes_ko:campTypes_en;
-    routeData.allStops.slice(0,-1).forEach((city,i)=>{
-      const c=campTypes[i%campTypes.length];
-      const price=Math.floor(Math.random()*25+25);
+    const campTypes_en=['KOA Journey Kampground','State Park Campground','National Forest Campsite','Jellystone Park','Good Sam RV Resort','COE Campground'];
+    const campTypes_ko=['KOA 캠프장','주립공원 캠프장','국유림 캠프사이트','젤리스톤 파크','굿샘 RV 리조트','COE 캠프장'];
+    const ct=lang==='ko'?campTypes_ko:campTypes_en;
+    routeData.days.filter(d=>!d.isLast).forEach((d,i)=>{
+      const name=ct[i%ct.length];
+      const cn=d.to.split(',')[0];
+      const price=Math.floor(Math.random()*20+28);
       const id='camp-'+Math.random().toString(36).slice(2);
       const card=document.createElement('div'); card.className='poi-card';
-      card.innerHTML=`<div class="poi-name">⛺ ${c}</div><div class="poi-sub">${city.split(',')[0]} · $${price}/night</div><div class="poi-actions"><span class="poi-rating">★ ${(Math.random()*0.8+4.1).toFixed(1)}</span><button class="btn-add-route" id="${id}" onclick="addPOIToRoute(this,'${c} (${city.split(',')[0]})')">${t('add_to_route')}</button></div>`;
+      card.innerHTML=`<div class="poi-name">⛺ ${name}</div><div class="poi-sub">${cn} area · $${price}/night · Full hookups available</div><div class="poi-actions"><span class="poi-rating">★ ${(Math.random()*0.6+4.1).toFixed(1)}</span><button class="btn-add-route" id="${id}" onclick="addPOIToRoute(this,'${name} (${cn})')">${t('add_to_route')}</button></div>`;
       campList.appendChild(card);
     });
   } else { campCard.style.display='none'; }
