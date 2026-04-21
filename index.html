@@ -1281,177 +1281,221 @@ ROAD_EDGES.forEach(([a,b,miles,hrs,hwy,pois])=>{
 });
 
 // Haversine distance fallback (in miles)
-function haversine(a,b){
+function haversine(a, b){
   const cd=CITY_DATA[a], cd2=CITY_DATA[b];
   if(!cd||!cd2) return 500;
-  const R=3958.8, dLat=(cd2.lat-cd.lat)*Math.PI/180, dLon=(cd2.lon-cd.lon)*Math.PI/180;
-  const sin1=Math.sin(dLat/2), sin2=Math.sin(dLon/2);
-  const c=2*Math.asin(Math.sqrt(sin1*sin1+Math.cos(cd.lat*Math.PI/180)*Math.cos(cd2.lat*Math.PI/180)*sin2*sin2));
-  return Math.round(R*c*1.25); // 1.25x for road vs. straight-line
+  const R=3958.8,
+    dLat=(cd2.lat-cd.lat)*Math.PI/180,
+    dLon=(cd2.lon-cd.lon)*Math.PI/180;
+  const s1=Math.sin(dLat/2), s2=Math.sin(dLon/2);
+  const c=2*Math.asin(Math.sqrt(s1*s1+Math.cos(cd.lat*Math.PI/180)*Math.cos(cd2.lat*Math.PI/180)*s2*s2));
+  return Math.round(R*c*1.3);
 }
 
-// Dijkstra shortest path (by miles)
+// ── Minimal binary-heap priority queue ─────────────────
+class MinHeap {
+  constructor(){ this.h=[]; }
+  push(pri, val){ this.h.push({pri,val}); this._up(this.h.length-1); }
+  pop(){ const top=this.h[0]; const last=this.h.pop(); if(this.h.length){this.h[0]=last;this._down(0);} return top; }
+  get size(){ return this.h.length; }
+  _up(i){ while(i>0){const p=(i-1)>>1; if(this.h[p].pri<=this.h[i].pri)break; [this.h[p],this.h[i]]=[this.h[i],this.h[p]]; i=p;} }
+  _down(i){ const n=this.h.length; while(true){let s=i,l=2*i+1,r=2*i+2; if(l<n&&this.h[l].pri<this.h[s].pri)s=l; if(r<n&&this.h[r].pri<this.h[s].pri)s=r; if(s===i)break; [this.h[s],this.h[i]]=[this.h[i],this.h[s]]; i=s;} }
+}
+
+// ── Dijkstra (heap-based, O(E log V)) ──────────────────
 function dijkstra(start, end){
-  // Normalize city names
-  start=normCity(start); end=normCity(end);
-  if(start===end) return {path:[start],miles:0,hrs:0,segments:[]};
+  start = normCity(start);
+  end   = normCity(end);
+  if(!start || !end || start === end)
+    return {path:[start||end],miles:0,hrs:0,segments:[]};
 
-  const dist={}, prev={}, segInfo={};
-  const visited=new Set();
-  const nodes=Object.keys({...GRAPH,...(GRAPH[end]?{}:{[end]:{}})});
-  nodes.forEach(n=>dist[n]=Infinity); dist[start]=0;
+  const dist = {[start]:0};
+  const prev = {};
+  const visited = new Set();
+  const heap = new MinHeap();
+  heap.push(0, start);
 
-  // Priority queue (simple array for small graphs)
-  const pq=[[0,start]];
-  while(pq.length){
-    pq.sort((a,b)=>a[0]-b[0]);
-    const [d,u]=pq.shift();
-    if(visited.has(u)) continue; visited.add(u);
-    if(u===end) break;
-    if(!GRAPH[u]) continue;
-    for(const [v,edge] of Object.entries(GRAPH[u])){
-      const nd=d+edge.miles;
-      if(nd<(dist[v]||Infinity)){ dist[v]=nd; prev[v]=u; segInfo[v]=edge; pq.push([nd,v]); }
-    }
-  }
-
-  // Reconstruct path
-  if(dist[end]===Infinity){
-    // No known path — use haversine direct
-    const miles=haversine(start,end);
-    return {path:[start,end],miles,hrs:+(miles/65).toFixed(1),segments:[{from:start,to:end,miles,hrs:+(miles/65).toFixed(1),hwy:'Interstate',pois:[]}]};
-  }
-  const path=[end]; let cur=end;
-  while(prev[cur]){ path.unshift(prev[cur]); cur=prev[cur]; }
-  const segments=[];
-  for(let i=0;i<path.length-1;i++){
-    const e=GRAPH[path[i]][path[i+1]]||{miles:haversine(path[i],path[i+1]),hrs:0,hwy:'',pois:[]};
-    segments.push({from:path[i],to:path[i+1],miles:e.miles,hrs:e.hrs|+(e.miles/65).toFixed(1),hwy:e.hwy,pois:e.pois||[]});
-  }
-  const totalMiles=segments.reduce((s,sg)=>s+sg.miles,0);
-  const totalHrs=+(totalMiles/65).toFixed(1);
-  return {path,miles:totalMiles,hrs:totalHrs,segments};
-}
-
-// Normalize a typed city name to a known CITY_DATA key
-function normCity(input){
-  if(!input) return input;
-  const lower = input.toLowerCase().trim();
-  const inputCity = lower.split(',')[0].trim();
-  const inputState = (input.split(',')[1]||'').trim().toUpperCase();
-
-  // 1) Exact match on full key
-  const exact = Object.keys(CITY_DATA).find(k=>k.toLowerCase()===lower);
-  if(exact) return exact;
-
-  // 2) City-name + state match (e.g. "McKinney, TX" → find routing node in TX)
-  if(inputState){
-    const stMatch = Object.keys(CITY_DATA).find(k=>{
-      const [kCity, kState] = k.split(',').map(s=>s.trim());
-      return kState===inputState && (kCity.toLowerCase()===inputCity || kCity.toLowerCase().includes(inputCity) || inputCity.includes(kCity.toLowerCase()));
-    });
-    if(stMatch) return stMatch;
-  }
-
-  // 3) Check SUBURB_MAP — find the metro this city belongs to, return that metro
-  for(const [metro, suburbs] of Object.entries(SUBURB_MAP)){
-    const mState = (metro.split(',')[1]||'').trim();
-    if(inputState && mState !== inputState) continue;
-    for(const sub of suburbs){
-      if(sub.toLowerCase()===inputCity || sub.toLowerCase().includes(inputCity) || inputCity.includes(sub.toLowerCase())){
-        // Return metro as nearest known routing node
-        return normCity(metro) || metro;
+  while(heap.size){
+    const {pri:d, val:u} = heap.pop();
+    if(visited.has(u)) continue;
+    visited.add(u);
+    if(u === end) break;
+    const neighbors = GRAPH[u];
+    if(!neighbors) continue;
+    for(const v of Object.keys(neighbors)){
+      const nd = d + neighbors[v].miles;
+      if(nd < (dist[v] ?? Infinity)){
+        dist[v] = nd;
+        prev[v]  = u;
+        heap.push(nd, v);
       }
     }
   }
 
-  // 4) Loose partial match on city name only (any state)
+  // No path found — direct haversine fallback
+  if(!(end in dist) || dist[end] === Infinity || dist[end] === undefined){
+    const miles = haversine(start, end);
+    return {
+      path:[start, end], miles, hrs:+(miles/65).toFixed(1),
+      segments:[{from:start,to:end,miles,hrs:+(miles/65).toFixed(1),hwy:'Interstate',pois:[]}]
+    };
+  }
+
+  // Reconstruct path
+  const path=[end]; let cur=end;
+  let safety=0;
+  while(prev[cur] && safety++<200){ path.unshift(prev[cur]); cur=prev[cur]; }
+
+  const segments=[];
+  for(let i=0;i<path.length-1;i++){
+    const e = (GRAPH[path[i]]||{})[path[i+1]] || {miles:haversine(path[i],path[i+1]),hrs:0,hwy:'',pois:[]};
+    segments.push({from:path[i],to:path[i+1],miles:e.miles,hrs:e.hrs||+(e.miles/65).toFixed(1),hwy:e.hwy||'',pois:e.pois||[]});
+  }
+  const totalMiles = segments.reduce((s,sg)=>s+sg.miles, 0);
+  return {path, miles:totalMiles, hrs:+(totalMiles/65).toFixed(1), segments};
+}
+
+// ── Normalize typed city name to a CITY_DATA key ───────
+function normCity(input){
+  if(!input || typeof input !== 'string') return input;
+  const trimmed   = input.trim();
+  const lower     = trimmed.toLowerCase();
+  const parts     = trimmed.split(',').map(s=>s.trim());
+  const inputCity = parts[0].toLowerCase();
+  const inputState= (parts[1]||'').toUpperCase();
+
+  // 1) Exact match
+  if(CITY_DATA[trimmed]) return trimmed;
+  const exact = Object.keys(CITY_DATA).find(k=>k.toLowerCase()===lower);
+  if(exact) return exact;
+
+  // 2) City-name + state match
+  if(inputState){
+    const sm = Object.keys(CITY_DATA).find(k=>{
+      const [kc,ks]=(k+', ').split(',').map(s=>s.trim());
+      return ks===inputState && (kc.toLowerCase()===inputCity || kc.toLowerCase().startsWith(inputCity) || inputCity.startsWith(kc.toLowerCase()));
+    });
+    if(sm) return sm;
+  }
+
+  // 3) SUBURB_MAP lookup — find the metro, return its CITY_DATA key (no recursion)
+  for(const [metro, suburbs] of Object.entries(SUBURB_MAP)){
+    const mState = (metro.split(',')[1]||'').trim();
+    if(inputState && mState !== inputState) continue;
+    for(const sub of suburbs){
+      if(sub.toLowerCase()===inputCity || sub.toLowerCase().startsWith(inputCity) || inputCity.startsWith(sub.toLowerCase())){
+        // Look up the metro directly in CITY_DATA (no recursive call)
+        if(CITY_DATA[metro]) return metro;
+        const mk = Object.keys(CITY_DATA).find(k=>k.toLowerCase()===metro.toLowerCase());
+        if(mk) return mk;
+      }
+    }
+  }
+
+  // 4) Loose city-name-only match
   const loose = Object.keys(CITY_DATA).find(k=>{
-    const kCity = k.split(',')[0].trim().toLowerCase();
-    return kCity === inputCity || kCity.startsWith(inputCity) || inputCity.startsWith(kCity);
+    const kc = k.split(',')[0].trim().toLowerCase();
+    return kc===inputCity || kc.startsWith(inputCity) || inputCity.startsWith(kc);
   });
   if(loose) return loose;
 
-  return input; // Unknown city — keep as-is, haversine will estimate distance
+  return trimmed; // unknown — keep as-is; haversine will handle distance
 }
 
+// ── Build the full day-by-day US road trip ─────────────
 function buildUSRoute(origin, dest, wps, startDate, nights, maxMiPerDay, isCamping, isCar){
-  const normOrigin=normCity(origin)||origin;
-  const normDest=normCity(dest)||dest;
+  const normOrigin = normCity(origin) || origin;
+  const normDest   = normCity(dest)   || dest;
+  const wpCities   = (wps||[]).map(w=>normCity(w.name)||w.name);
+  const masterList = [normOrigin, ...wpCities, normDest];
 
-  // Build full stop list: origin → waypoints → dest
-  const wpCities=wps.map(w=>normCity(w.name)||w.name);
-  const masterList=[normOrigin,...wpCities,normDest];
-
-  // Find shortest paths between consecutive stops
-  let allSegments=[];
-  let fullPath=[normOrigin];
-  for(let i=0;i<masterList.length-1;i++){
-    const result=dijkstra(masterList[i],masterList[i+1]);
-    allSegments=allSegments.concat(result.segments);
-    fullPath=fullPath.concat(result.path.slice(1));
+  // Dijkstra between each consecutive stop
+  let allSegments = [];
+  let fullPath    = [normOrigin];
+  for(let i=0; i<masterList.length-1; i++){
+    const r = dijkstra(masterList[i], masterList[i+1]);
+    allSegments = allSegments.concat(r.segments);
+    fullPath    = fullPath.concat(r.path.slice(1));
   }
 
-  // De-duplicate consecutive identical cities
-  const dedupPath=fullPath.filter((c,i)=>i===0||c!==fullPath[i-1]);
-  const totalMiles=allSegments.reduce((s,sg)=>s+sg.miles,0);
+  // Deduplicate consecutive identical cities
+  const dedupPath = fullPath.filter((c,i)=>i===0||c!==fullPath[i-1]);
+  const totalMiles = allSegments.reduce((s,sg)=>s+sg.miles, 0);
 
-  // --- SMART DAY SPLITTER ---
-  // Respect maxMiPerDay limit. Each day = cumulative miles until limit hit.
-  const daysCount = nights+1;
-  const days=[];
-  let segIdx=0, dayMiles=0, dayFrom=normOrigin, daySegments=[];
-  let dayStops=[]; // intermediate cities on this day
+  // ── Smart day splitter ────────────────────────────────
+  const daysCount = Math.max(1, nights+1);
+  const days = [];
+  let dayMiles=0, dayFrom=normOrigin, daySegments=[], dayStops=[];
   let currentDay=1;
-  const dayDate=(d)=>{ const dd=new Date(startDate); dd.setDate(startDate.getDate()+d-1); return dd; };
 
-  // Flatten all segments into ordered list
-  for(let s=0;s<allSegments.length;s++){
-    const seg=allSegments[s];
-    const wouldExceed = dayMiles+seg.miles > maxMiPerDay;
-    const isFirstSeg = dayMiles===0;
+  const dayDate = d=>{ const dd=new Date(startDate); dd.setDate(startDate.getDate()+d-1); return dd; };
 
-    if(!wouldExceed || isFirstSeg){
-      // Add this segment to current day
-      // If it's a single very long segment (no choice), accept but mark as long drive
-      dayMiles+=seg.miles;
+  for(const seg of allSegments){
+    const wouldExceed = (dayMiles+seg.miles) > maxMiPerDay;
+    const firstSeg    = dayMiles===0;
+
+    if(!wouldExceed || firstSeg){
+      // Fits in today (or it's an unavoidably long single segment)
+      dayMiles += seg.miles;
       daySegments.push(seg);
-      if(seg.pois && seg.pois.length) dayStops=dayStops.concat(seg.pois.slice(0,1));
+      if(seg.pois && seg.pois.length) dayStops.push(seg.pois[0]);
     } else {
-      // Close current day, start new one
-      const dayTo=daySegments[daySegments.length-1]?.to || normOrigin;
-      const isLast=(currentDay===daysCount);
-      const overnight=isLast?null:isCamping?suggestCampground(dayTo):suggestHotel(dayTo);
-      const sights=getCitySights(dayTo);
-      const restStop=dayMiles>120?getRestArea(dayFrom,dayTo,daySegments):null;
-      const longDay=dayMiles>maxMiPerDay;
-      days.push({day:currentDay,date:dayDate(currentDay),from:dayFrom,to:dayTo,
-        estMiles:Math.round(dayMiles),estHrs:+(dayMiles/65).toFixed(1),
-        hwy:daySegments[0]?.hwy||'',isLast,overnight,sights,restStop,passThrough:dayStops,longDay});
+      // Close today's drive
+      const dayTo = daySegments[daySegments.length-1].to;
+      const isLast = currentDay >= daysCount;
+      days.push({
+        day:currentDay, date:dayDate(currentDay),
+        from:dayFrom, to:dayTo,
+        estMiles:Math.round(dayMiles),
+        estHrs:+(dayMiles/65).toFixed(1),
+        hwy:daySegments[0]?.hwy||'',
+        isLast, longDay: dayMiles>maxMiPerDay,
+        overnight: isLast?null:(isCamping?suggestCampground(dayTo):suggestHotel(dayTo)),
+        sights: getCitySights(dayTo),
+        restStop: dayMiles>120?getRestArea(dayFrom,dayTo,daySegments):null,
+        passThrough: [...dayStops]
+      });
       currentDay++;
-      dayFrom=dayTo; dayMiles=seg.miles; daySegments=[seg]; dayStops=seg.pois?seg.pois.slice(0,1):[];
+      dayFrom=dayTo; dayMiles=seg.miles; daySegments=[seg]; dayStops=seg.pois?[seg.pois[0]]:[];
     }
   }
-  // Last accumulated day
+
+  // Push final day
   if(daySegments.length>0){
-    const dayTo=normDest;
-    const isLast=true;
-    const sights=getCitySights(dayTo);
-    const restStop=dayMiles>150?getRestArea(dayFrom,dayTo,daySegments):null;
-    days.push({day:currentDay,date:dayDate(currentDay),from:dayFrom,to:dayTo,estMiles:Math.round(dayMiles),estHrs:+(dayMiles/65).toFixed(1),hwy:daySegments[0]?.hwy||'',isLast,overnight:null,sights,restStop,passThrough:dayStops});
+    days.push({
+      day:currentDay, date:dayDate(currentDay),
+      from:dayFrom, to:normDest,
+      estMiles:Math.round(dayMiles),
+      estHrs:+(dayMiles/65).toFixed(1),
+      hwy:daySegments[0]?.hwy||'',
+      isLast:true, longDay: dayMiles>maxMiPerDay,
+      overnight:null,
+      sights: getCitySights(normDest),
+      restStop: dayMiles>120?getRestArea(dayFrom,normDest,daySegments):null,
+      passThrough: [...dayStops]
+    });
   }
 
-  // If we have fewer days than nights+1, spread them out (add zero-drive day at destination)
-  while(days.length<daysCount){
-    const last=days[days.length-1];
-    days[days.length-1].isLast=false;
-    days[days.length-1].overnight=isCamping?suggestCampground(normDest):suggestHotel(normDest);
-    const extra={ day:days.length+1, date:dayDate(days.length+1), from:normDest, to:normDest, estMiles:0, estHrs:0, hwy:'', isLast:true, overnight:null, sights:getCitySights(normDest), restStop:null, passThrough:[] };
-    days.push(extra);
+  // Pad remaining nights with explore days at destination
+  while(days.length < daysCount){
+    const prev = days[days.length-1];
+    if(prev && !prev.isLast){
+      prev.isLast = false;
+      prev.overnight = isCamping ? suggestCampground(normDest) : suggestHotel(normDest);
+    }
+    days.push({
+      day:days.length+1, date:dayDate(days.length+1),
+      from:normDest, to:normDest,
+      estMiles:0, estHrs:0, hwy:'', isLast:true, longDay:false,
+      overnight:null,
+      sights: getCitySights(normDest),
+      restStop:null, passThrough:[]
+    });
   }
 
   return { origin:normOrigin, dest:normDest, allStops:dedupPath, days, totalMiles:Math.round(totalMiles), nights, isCamping };
 }
+
 
 function getCitySights(city){
   const cn=city.split(',')[0].trim();
