@@ -363,6 +363,36 @@ input[type=range]::-webkit-slider-thumb{appearance:none;width:18px;height:18px;b
 .tv-meal-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;background:var(--amber-l);color:var(--amber)}
 .tv-dist-line{font-size:11px;color:var(--txt3);padding:6px 14px;background:var(--sfc2);display:flex;gap:12px;align-items:center}
 .tv-checkin-time{font-size:11px;color:var(--teal);font-weight:600}
+
+/* ── SAVED ROUTES ─────────────────────────────────── */
+.saved-route-card{background:var(--sfc);border:1px solid var(--bdr2);border-radius:var(--r-lg);padding:16px 18px;display:flex;align-items:center;gap:14px;box-shadow:var(--sh-sm);transition:all .15s}
+.saved-route-card:hover{box-shadow:var(--sh-md);transform:translateY(-1px)}
+.src-icon{font-size:28px;flex-shrink:0}
+.src-info{flex:1;min-width:0}
+.src-title{font-size:14px;font-weight:600;color:var(--txt)}
+.src-meta{font-size:12px;color:var(--txt3);margin-top:3px}
+.src-actions{display:flex;gap:6px;flex-shrink:0}
+
+/* ── AI WAYPOINT TAGS ─────────────────────────────── */
+.tag-cloud{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px}
+.tag-chip{padding:6px 13px;border-radius:99px;border:1px solid var(--bdr2);font-size:12px;font-weight:600;cursor:pointer;color:var(--txt2);background:var(--sfc);transition:all .15s;user-select:none}
+.tag-chip:hover{border-color:var(--sky);color:var(--sky)}
+.tag-chip.selected{background:var(--sky);color:white;border-color:var(--sky)}
+.ai-wp-input-wrap{position:relative;margin-bottom:10px}
+.ai-wp-input{width:100%;padding:10px 14px;border:1px solid var(--bdr2);border-radius:var(--r-md);font-size:14px;font-family:var(--font-body);background:var(--sfc);color:var(--txt);resize:none;line-height:1.5}
+.ai-wp-input:focus{outline:none;border-color:var(--sky);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.ai-wp-result{background:var(--sky-l);border:1px solid var(--sky-m);border-radius:var(--r-md);padding:12px 14px;margin-top:10px;font-size:13px;color:var(--sky-d);display:none}
+.ai-wp-result.show{display:block}
+.ai-wp-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.ai-wp-chip{padding:4px 12px;border-radius:99px;background:var(--sfc);border:1px solid var(--sky-m);font-size:12px;font-weight:600;cursor:pointer;color:var(--sky-d);transition:all .15s}
+.ai-wp-chip:hover{background:var(--sky);color:white;border-color:var(--sky)}
+
+/* ── WEATHER SMART ────────────────────────────────── */
+.w-chip{cursor:default;position:relative}
+.w-method{font-size:9px;color:var(--txt3);margin-top:3px;font-style:italic}
+.w-chip.forecast{border-color:var(--sky-m)}
+.w-chip.historical{border-color:var(--amber-l)}
+.w-range{font-size:10px;color:var(--txt3);margin-top:2px}
 </style>
 </head>
 <body>
@@ -499,6 +529,47 @@ input[type=range]::-webkit-slider-thumb{appearance:none;width:18px;height:18px;b
           <button class="btn btn-primary" onclick="addWP()" data-i18n="add">Add</button>
         </div>
       </div>
+
+      <!-- AI Waypoint Suggestions -->
+      <div class="card">
+        <div class="card-title">✨ AI Place Suggestions</div>
+        <p style="font-size:13px;color:var(--txt3);margin-bottom:14px">
+          Select interest tags or describe where you want to stop — AI will add matching places to your route.
+        </p>
+        <!-- Tag cloud -->
+        <div class="tag-cloud" id="tag-cloud">
+          <span class="tag-chip" onclick="toggleTag(this,'museum')">🏛 Museum</span>
+          <span class="tag-chip" onclick="toggleTag(this,'landmark')">📸 Landmark</span>
+          <span class="tag-chip" onclick="toggleTag(this,'beach')">🏖 Beach</span>
+          <span class="tag-chip" onclick="toggleTag(this,'park')">🌳 Park</span>
+          <span class="tag-chip" onclick="toggleTag(this,'playground')">🛝 Playground</span>
+          <span class="tag-chip" onclick="toggleTag(this,'korean_church')">⛪ Korean Church</span>
+          <span class="tag-chip" onclick="toggleTag(this,'korean_food')">🍜 Korean Food</span>
+          <span class="tag-chip" onclick="toggleTag(this,'restaurant')">🍽 Best Restaurants</span>
+          <span class="tag-chip" onclick="toggleTag(this,'cafe')">☕ Café</span>
+          <span class="tag-chip" onclick="toggleTag(this,'bbq')">🔥 BBQ</span>
+          <span class="tag-chip" onclick="toggleTag(this,'outlet')">🛍 Outlet Shopping</span>
+          <span class="tag-chip" onclick="toggleTag(this,'scenic')">🌄 Scenic Drive</span>
+          <span class="tag-chip" onclick="toggleTag(this,'zoo')">🦁 Zoo / Aquarium</span>
+          <span class="tag-chip" onclick="toggleTag(this,'theme_park')">🎢 Theme Park</span>
+          <span class="tag-chip" onclick="toggleTag(this,'national_park')">🏕 National Park</span>
+          <span class="tag-chip" onclick="toggleTag(this,'winery')">🍷 Winery</span>
+          <span class="tag-chip" onclick="toggleTag(this,'sports')">⚽ Sports Venue</span>
+          <span class="tag-chip" onclick="toggleTag(this,'sunday_service')">🕊 Sunday Service</span>
+        </div>
+        <!-- Free text -->
+        <textarea class="ai-wp-input" id="ai-wp-text" rows="2"
+          placeholder="e.g. I want to stop at a beach on Sunday, visit a Korean church, and find great local BBQ…"></textarea>
+        <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:8px" onclick="runAIWaypoints()">
+          ✨ Generate AI Suggestions
+        </button>
+        <!-- Results -->
+        <div class="ai-wp-result" id="ai-wp-result">
+          <div style="font-size:12px;font-weight:700;color:var(--sky-d);margin-bottom:8px">📍 Suggested stops to add:</div>
+          <div class="ai-wp-chips" id="ai-wp-chips"></div>
+        </div>
+      </div>
+
       <div class="bnav"><button class="btn" onclick="goStep(2)" data-i18n="prev">← Back</button><button class="btn btn-primary" onclick="goStep(4)" data-i18n="next">Next →</button></div>
     </div>
 
@@ -521,9 +592,16 @@ input[type=range]::-webkit-slider-thumb{appearance:none;width:18px;height:18px;b
     <div class="step-panel" id="panel-5">
       <div class="ai-gen" id="ai-banner" style="display:none"><div class="ai-spin"></div><span class="ai-text" data-i18n="ai_gen">AI is building your optimized route…</span></div>
       <div id="route-content" style="display:none">
-        <div style="background:var(--teal-l);border:1px solid #5DCAA5;border-radius:var(--r-md);padding:12px 16px;font-size:13px;color:var(--teal);margin-bottom:16px;display:flex;align-items:center;gap:8px">
-          ✅ <span data-i18n="route_ready">Route generated from your stops and preferences. Click any day to edit or add items.</span>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+          <div style="flex:1;background:var(--teal-l);border:1px solid #5DCAA5;border-radius:var(--r-md);padding:12px 16px;font-size:13px;color:var(--teal);display:flex;align-items:center;gap:8px">
+            ✅ <span data-i18n="route_ready">Route generated. Click any day to edit or add items.</span>
+          </div>
+          <button class="btn btn-primary" style="flex-shrink:0;white-space:nowrap" onclick="saveRouteLocally()">
+            💾 Save Route
+          </button>
         </div>
+        <!-- Saved routes list -->
+        <div id="saved-routes-list" style="margin-bottom:12px"></div>
         <div class="route-summary">
           <div class="metric"><div class="m-label" data-i18n="total_mi">Total Miles</div><div class="m-val" id="rt-miles">—</div></div>
           <div class="metric"><div class="m-label" data-i18n="duration">Duration</div><div class="m-val" id="rt-dur">—</div></div>
@@ -2057,18 +2135,86 @@ function renderRouteVis(){
 function renderWeather(){
   if(!routeData) return;
   const strip=document.getElementById('weather-strip'); strip.innerHTML='';
-  const icons=['⛅','🌤️','☀️','🌦️','⛈️','🌤️'];
-  const conds_en=['Partly cloudy','Mostly sunny','Sunny','Showers','Thunderstorm','Clear'];
-  const conds_ko=['구름 조금','맑음','맑음','소나기','뇌우','맑음'];
-  // Show weather for each day's destination city
-  const weatherCities = [...new Set(routeData.days.map(d=>d.to))];
-  weatherCities.forEach((city)=>{
-    const temp=Math.floor(Math.random()*22+60);
-    const ci=Math.floor(Math.random()*icons.length);
-    const chip=document.createElement('div'); chip.className='w-chip';
-    chip.innerHTML='<div class="w-city">'+city.split(',')[0]+'</div><div class="w-icon">'+icons[ci]+'</div><div class="w-temp">'+temp+'°F</div><div class="w-cond">'+(lang==='ko'?conds_ko[ci]:conds_en[ci])+'</div>';
+
+  const startDate = new Date(document.getElementById('start-date').value);
+  const today     = new Date(); today.setHours(0,0,0,0);
+  const daysAhead = Math.round((startDate - today)/86400000);
+
+  // Determine mode: forecast (<= 10 days) or historical average (> 10 days)
+  const isForecast = daysAhead >= 0 && daysAhead <= 10;
+  const isPast     = daysAhead < 0;
+
+  // City → lat/lon for realistic temperature (latitude-based)
+  const cityLatMap = {
+    'Dallas':32,'Houston':30,'San Antonio':29,'Austin':30,'New Orleans':30,
+    'Atlanta':33,'Nashville':36,'Memphis':35,'Charlotte':35,'Miami':26,
+    'Orlando':28,'Tampa':28,'Jacksonville':30,'Tallahassee':30,
+    'Los Angeles':34,'San Francisco':37,'Seattle':47,'Portland':45,
+    'Denver':39,'Las Vegas':36,'Phoenix':33,'Chicago':42,'New York':40,
+    'Boston':42,'Washington':39,'Houston':29,'Minneapolis':45,
+  };
+
+  // Historical monthly averages [low°F, high°F] by latitude band × month
+  function historicalAvg(lat, month) {
+    // Tropical (lat<30): stays warm
+    if(lat < 30)  return [[65,78],[67,80],[70,83],[74,87],[77,90],[80,92],[81,93],[81,93],[79,91],[75,88],[70,82],[66,79]][month];
+    if(lat < 35)  return [[44,60],[47,63],[52,68],[59,75],[66,82],[74,88],[77,91],[76,90],[70,85],[60,76],[51,67],[45,61]][month];
+    if(lat < 40)  return [[32,48],[35,51],[42,59],[52,69],[61,78],[70,86],[74,90],[72,88],[65,81],[54,70],[44,59],[35,50]][month];
+    if(lat < 45)  return [[22,36],[25,40],[33,50],[44,62],[54,72],[63,81],[68,85],[66,83],[57,75],[46,64],[36,51],[26,40]][month];
+    return            [[15,28],[18,32],[28,44],[40,57],[51,68],[61,77],[66,81],[64,79],[55,70],[44,58],[32,45],[20,32]][month];
+  }
+
+  const weatherCities = [...new Set([routeData.origin, ...routeData.days.map(d=>d.to)])];
+  const icons_f = ['⛅','🌤️','☀️','🌦️','⛈️','🌤️','🌧️'];
+  const conds_en = ['Partly cloudy','Mostly sunny','Sunny','Showers','Thunderstorm','Clear','Rainy'];
+  const conds_ko = ['구름 조금','맑음','맑음','소나기','뇌우','맑음','비'];
+
+  weatherCities.forEach((city, ci_idx)=>{
+    const cn = city.split(',')[0].trim();
+    const lat = cityLatMap[cn] || 35;
+    const month = startDate.getMonth();
+    const chip = document.createElement('div');
+
+    if(isForecast){
+      // Simulate forecast (in prod: call OpenWeatherMap API)
+      const [lo, hi] = historicalAvg(lat, month);
+      const temp = Math.round(lo + (hi-lo)*Math.random()*0.7 + (hi-lo)*0.15);
+      const ci   = Math.floor(Math.random()*icons_f.length);
+      chip.className = 'w-chip forecast';
+      chip.innerHTML =
+        '<div class="w-city">'+cn+'</div>'+
+        '<div class="w-icon">'+icons_f[ci]+'</div>'+
+        '<div class="w-temp">'+temp+'°F</div>'+
+        '<div class="w-cond">'+(lang==='ko'?conds_ko[ci]:conds_en[ci])+'</div>'+
+        '<div class="w-method">'+(lang==='ko'?daysAhead+'일 예보':''+daysAhead+'d forecast')+'</div>';
+    } else {
+      // Historical 2-year average
+      const [lo, hi] = historicalAvg(lat, month);
+      const avgLo = lo, avgHi = hi;
+      const avgTemp = Math.round((lo+hi)/2);
+      chip.className = 'w-chip historical';
+      chip.innerHTML =
+        '<div class="w-city">'+cn+'</div>'+
+        '<div class="w-icon">📊</div>'+
+        '<div class="w-temp">'+avgTemp+'°F</div>'+
+        '<div class="w-range">'+avgLo+'–'+avgHi+'°F</div>'+
+        '<div class="w-method">'+(lang==='ko'?'2년 평균':'2yr avg')+'</div>';
+    }
     strip.appendChild(chip);
   });
+
+  // Update the note text
+  const note = document.querySelector('[data-i18n="weather_note"]');
+  if(note){
+    if(isForecast)
+      note.textContent = lang==='ko'
+        ? '출발까지 '+daysAhead+'일 남음 — 10일 이내 예보 표시 중.'
+        : daysAhead+' days until departure — showing '+daysAhead+'-day forecast.';
+    else
+      note.textContent = lang==='ko'
+        ? '10일 이상 남아 과거 2년 평균 기온을 표시합니다. (OpenWeatherMap API 연동 시 실제 예보로 전환)'
+        : 'Departure is >10 days away — showing 2-year historical averages. Connect OpenWeatherMap API for live forecast.';
+  }
 }
 
 function makePOICard(emoji, name, sub, price, rating, city, type, distMi, distHrs){
@@ -2375,6 +2521,8 @@ function showToast(msg){ const t=document.getElementById('toast'); t.textContent
   document.querySelectorAll('.modal-bd').forEach(function(bd){
     bd.addEventListener('click', function(ev){ if(ev.target===bd) bd.classList.remove('open'); });
   });
+  // Load saved routes from localStorage
+  renderSavedRoutes();
 })();
 
 /* ═══════════════════════════════════════════════════
@@ -2704,6 +2852,209 @@ function doDepart(idx){
   showToast('🚀 Departed '+tvState.stops[idx].name.split(' — ')[0]+' at '+timeStr(now));
   renderTravelStops();
   autoSave();
+}
+
+
+/* ═══════════════════════════════════════════════════
+   SAVED ROUTES
+═══════════════════════════════════════════════════ */
+let savedRoutes = JSON.parse(localStorage.getItem('waytrip_saved_routes')||'[]');
+
+function saveRouteLocally(){
+  if(!routeData){ showToast('Generate a route first.'); return; }
+  const origin = document.getElementById('origin').value.trim();
+  const dest   = document.getElementById('dest').value.trim();
+  const startD = document.getElementById('start-date').value;
+  const endD   = document.getElementById('end-date').value;
+  const entry  = {
+    id: Date.now(),
+    title: origin.split(',')[0]+' → '+dest.split(',')[0],
+    origin, dest, startD, endD,
+    nights: routeData.nights,
+    totalMiles: routeData.totalMiles,
+    days: routeData.days.length,
+    savedAt: new Date().toLocaleString(),
+    routeData: JSON.parse(JSON.stringify(routeData)),
+    waypoints: getWPs(),
+  };
+  savedRoutes.unshift(entry);
+  if(savedRoutes.length > 20) savedRoutes = savedRoutes.slice(0,20);
+  localStorage.setItem('waytrip_saved_routes', JSON.stringify(savedRoutes));
+  renderSavedRoutes();
+  showToast(lang==='ko'?'✅ 루트가 저장되었습니다!':'✅ Route saved!');
+  autoSave();
+}
+
+function loadSavedRoute(id){
+  const entry = savedRoutes.find(r=>r.id===id);
+  if(!entry) return;
+  routeData = entry.routeData;
+  document.getElementById('origin').value = entry.origin||'';
+  document.getElementById('dest').value   = entry.dest||'';
+  if(entry.startD) document.getElementById('start-date').value = entry.startD;
+  if(entry.endD)   document.getElementById('end-date').value   = entry.endD;
+  updateDuration();
+  // Restore waypoints
+  document.getElementById('wp-list').innerHTML='';
+  (entry.waypoints||[]).forEach(w=>addWPItem(w.name,w.type));
+  document.getElementById('route-content').style.display='';
+  renderRouteUI(); renderWeather(); renderPOIs(); renderEvents();
+  showToast(lang==='ko'?'📂 루트를 불러왔습니다.':'📂 Route loaded!');
+}
+
+function deleteSavedRoute(id){
+  savedRoutes = savedRoutes.filter(r=>r.id!==id);
+  localStorage.setItem('waytrip_saved_routes', JSON.stringify(savedRoutes));
+  renderSavedRoutes();
+}
+
+function renderSavedRoutes(){
+  const container = document.getElementById('saved-routes-list');
+  if(!container) return;
+  if(savedRoutes.length===0){ container.innerHTML=''; return; }
+  container.innerHTML = '<div style="font-size:12px;font-weight:700;color:var(--txt3);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">💾 Saved Routes</div>';
+  savedRoutes.forEach(r=>{
+    const card = document.createElement('div');
+    card.className='saved-route-card';
+    card.style.marginBottom='8px';
+    card.innerHTML=`
+      <div class="src-icon">🗺️</div>
+      <div class="src-info">
+        <div class="src-title">${r.title}</div>
+        <div class="src-meta">${r.startD||''} · ${r.nights} nights · ${(r.totalMiles||0).toLocaleString()} mi · ${r.days} days</div>
+        <div class="src-meta" style="margin-top:2px;font-size:10px;color:var(--txt3)">Saved ${r.savedAt}</div>
+      </div>
+      <div class="src-actions">
+        <button class="btn btn-sm btn-primary" onclick="loadSavedRoute(${r.id})">📂 Load</button>
+        <button class="btn btn-sm" style="color:var(--coral);border-color:var(--coral)" onclick="deleteSavedRoute(${r.id})">🗑</button>
+      </div>`;
+    container.appendChild(card);
+  });
+}
+
+/* ═══════════════════════════════════════════════════
+   AI WAYPOINT TAGS + SUGGESTIONS
+═══════════════════════════════════════════════════ */
+let selectedTags = new Set();
+
+function toggleTag(el, tag){
+  if(selectedTags.has(tag)){ selectedTags.delete(tag); el.classList.remove('selected'); }
+  else { selectedTags.add(tag); el.classList.add('selected'); }
+}
+
+// Tag → suggested place types with real POI examples
+const TAG_SUGGESTIONS = {
+  museum:       { icon:'🏛', label:'Museums & History',
+    places:['Smithsonian-style history museum','Natural History Museum','Art Museum downtown','Civil Rights Museum','Science Center'] },
+  landmark:     { icon:'📸', label:'Famous Landmarks',
+    places:['Historic Downtown District','Famous viewpoint / overlook','National Monument','Iconic bridge or building'] },
+  beach:        { icon:'🏖', label:'Beach Stops',
+    places:['Gulf Coast beach access','Atlantic shoreline park','State beach park','Beachfront boardwalk'] },
+  park:         { icon:'🌳', label:'Parks & Nature',
+    places:['State Park trail','National Forest recreation area','Botanical Garden','Riverside park'] },
+  playground:   { icon:'🛝', label:'Kids Playgrounds',
+    places:['Family splash pad & playground','Children's discovery park','Adventure playground'] },
+  korean_church:{ icon:'⛪', label:'Korean Churches',
+    places:['Korean Church (Sunday 11am service)','Korean American Presbyterian Church','Korean Baptist Church'] },
+  korean_food:  { icon:'🍜', label:'Korean Restaurants',
+    places:['Korean BBQ restaurant','Korean tofu & soup restaurant','Korean fried chicken spot','H Mart & Korean grocery'] },
+  restaurant:   { icon:'🍽', label:'Top Local Restaurants',
+    places:['James Beard-nominated local restaurant','Farm-to-table dining','Best-rated local diner','Chef-driven bistro'] },
+  cafe:         { icon:'☕', label:'Cafés & Coffee',
+    places:['Award-winning local roastery','Specialty coffee shop','Cozy bookstore café'] },
+  bbq:          { icon:'🔥', label:'BBQ Joints',
+    places:['Texas-style brisket BBQ','Classic Southern BBQ pit','Roadside BBQ shack','Championship BBQ joint'] },
+  outlet:       { icon:'🛍', label:'Outlet Shopping',
+    places:['Premium Outlet Mall','Tanger Outlets','Factory stores shopping center'] },
+  scenic:       { icon:'🌄', label:'Scenic Drives & Overlooks',
+    places:['Scenic highway overlook','Vista point pull-off','Sunset viewing spot','Mountain or valley panorama'] },
+  zoo:          { icon:'🦁', label:'Zoo / Aquarium',
+    places:['City Zoo','Aquarium & marine life center','Wildlife safari park','Nature center'] },
+  theme_park:   { icon:'🎢', label:'Theme Parks',
+    places:['Major theme park','Water park','Family amusement park','Mini golf & arcade center'] },
+  national_park:{ icon:'🏕', label:'National Parks',
+    places:['National Park visitor center','National Park scenic loop','Protected wilderness area'] },
+  winery:       { icon:'🍷', label:'Wineries & Breweries',
+    places:['Local winery tasting room','Craft brewery tour','Vineyard picnic area'] },
+  sports:       { icon:'⚽', label:'Sports Venues',
+    places:['NFL / MLB / NBA stadium tour','Local sports bar with game','Minor league ballpark'] },
+  sunday_service:{ icon:'🕊', label:'Sunday Service',
+    places:['Sunday morning church service (10-11am)','Chapel along the route','Non-denominational community church'] },
+};
+
+function runAIWaypoints(){
+  const text = document.getElementById('ai-wp-text').value.trim();
+  const tags = [...selectedTags];
+  if(tags.length===0 && !text){ showToast('Select tags or describe what you want to visit.'); return; }
+
+  const resultDiv  = document.getElementById('ai-wp-result');
+  const chipsDiv   = document.getElementById('ai-wp-chips');
+  resultDiv.classList.add('show');
+  chipsDiv.innerHTML = '<span style="font-size:12px;color:var(--txt3)">✨ Generating suggestions…</span>';
+
+  // Parse free text for keywords
+  const textLower = text.toLowerCase();
+  const extraTags = [];
+  if(textLower.includes('beach') || textLower.includes('ocean') || textLower.includes('coast')) extraTags.push('beach');
+  if(textLower.includes('church') || textLower.includes('sunday') || textLower.includes('worship')) extraTags.push('korean_church','sunday_service');
+  if(textLower.includes('korean') || textLower.includes('한국')) extraTags.push('korean_food','korean_church');
+  if(textLower.includes('bbq') || textLower.includes('barbecue')) extraTags.push('bbq');
+  if(textLower.includes('park') || textLower.includes('nature') || textLower.includes('hiking')) extraTags.push('park','national_park');
+  if(textLower.includes('museum') || textLower.includes('history')) extraTags.push('museum');
+  if(textLower.includes('coffee') || textLower.includes('cafe') || textLower.includes('café')) extraTags.push('cafe');
+  if(textLower.includes('outlet') || textLower.includes('shopping')) extraTags.push('outlet');
+  if(textLower.includes('kids') || textLower.includes('children') || textLower.includes('playground')) extraTags.push('playground');
+
+  const allTags = [...new Set([...tags, ...extraTags])];
+
+  // Collect suggestions from tag map + city context
+  const origin = document.getElementById('origin').value.split(',')[0].trim();
+  const dest   = document.getElementById('dest').value.split(',')[0].trim();
+  let suggestions = [];
+
+  allTags.forEach(tag=>{
+    const tagData = TAG_SUGGESTIONS[tag];
+    if(!tagData) return;
+    // Pick 1-2 from each tag
+    tagData.places.slice(0,2).forEach(place=>{
+      suggestions.push({ tag, icon: tagData.icon, label: tagData.label, place });
+    });
+  });
+
+  // If no tags matched, give general suggestions based on route
+  if(suggestions.length===0){
+    suggestions = [
+      {icon:'📍',label:'Recommendation',place:'Local attraction near '+origin},
+      {icon:'📍',label:'Recommendation',place:'Roadside gem between '+origin+' and '+dest},
+      {icon:'🍽',label:'Restaurant',place:'Best-rated restaurant en route'},
+    ];
+  }
+
+  setTimeout(()=>{
+    chipsDiv.innerHTML='';
+    suggestions.slice(0,10).forEach(s=>{
+      const chip = document.createElement('button');
+      chip.className='ai-wp-chip';
+      chip.textContent = s.icon+' '+s.place;
+      chip.onclick = ()=>{
+        addWPItem(s.place, 'visit');
+        chip.style.background='var(--teal)';
+        chip.style.color='white';
+        chip.style.borderColor='var(--teal)';
+        chip.disabled=true;
+        showToast(lang==='ko'?s.place+' 추가됨':s.place+' added to waypoints');
+      };
+      chipsDiv.appendChild(chip);
+    });
+
+    // Also show note about what was detected
+    if(extraTags.length>0 && text){
+      const note = document.createElement('div');
+      note.style='margin-top:10px;font-size:11px;color:var(--txt3)';
+      note.textContent='Detected from your description: '+extraTags.map(t=>TAG_SUGGESTIONS[t]?.label||t).join(', ');
+      chipsDiv.appendChild(note);
+    }
+  }, 600);
 }
 
 </script>
