@@ -307,6 +307,62 @@ input[type=range]::-webkit-slider-thumb{appearance:none;width:18px;height:18px;b
   .route-summary{grid-template-columns:repeat(2,1fr)}
   .exp-table th:nth-child(5),.exp-table td:nth-child(5){display:none}
 }
+
+/* ── TRAVEL MODE ─────────────────────────────────── */
+#travel-mode-overlay{position:fixed;inset:0;background:rgba(10,10,20,.72);backdrop-filter:blur(6px);z-index:3000;display:none;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto}
+#travel-mode-overlay.open{display:flex}
+#travel-panel{background:var(--sfc);border-radius:var(--r-xl);border:1px solid var(--bdr2);width:100%;max-width:700px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+.tv-header{background:linear-gradient(135deg,#1E40AF,#7C3AED);padding:20px 24px;display:flex;align-items:center;justify-content:space-between}
+.tv-header-left{display:flex;align-items:center;gap:12px}
+.tv-live-dot{width:10px;height:10px;border-radius:50%;background:#4ADE80;box-shadow:0 0 8px #4ADE80;animation:pulse 1.5s infinite}
+.tv-title{font-size:16px;font-weight:700;color:white}
+.tv-subtitle{font-size:12px;color:rgba(255,255,255,.7);margin-top:2px}
+.tv-close{background:rgba(255,255,255,.15);border:none;border-radius:var(--r-md);padding:6px 14px;color:white;font-size:13px;cursor:pointer;font-family:var(--font-body)}
+.tv-close:hover{background:rgba(255,255,255,.25)}
+.tv-body{padding:20px 24px}
+.tv-setup{padding:16px;background:var(--sfc2);border-radius:var(--r-lg);margin-bottom:16px;display:flex;flex-direction:column;gap:12px}
+.tv-setup-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:520px){.tv-setup-row{grid-template-columns:1fr}}
+.tv-label{font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.tv-input{padding:9px 12px;border:1px solid var(--bdr2);border-radius:var(--r-sm);font-size:14px;font-family:var(--font-body);background:var(--sfc);color:var(--txt);width:100%}
+.tv-input:focus{outline:none;border-color:var(--sky);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.tv-progress{background:var(--sfc2);border-radius:var(--r-md);padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:14px}
+.tv-progress-bar-wrap{flex:1;height:6px;background:var(--bdr);border-radius:99px;overflow:hidden}
+.tv-progress-fill{height:100%;background:linear-gradient(90deg,var(--teal),var(--sky));border-radius:99px;transition:width .4s}
+.tv-progress-txt{font-size:12px;font-weight:600;color:var(--teal);white-space:nowrap}
+.tv-warning{background:#FEF9C3;border:1px solid #F59E0B;border-radius:var(--r-md);padding:10px 14px;font-size:13px;color:#92400E;margin-bottom:12px;display:none;align-items:center;gap:8px}
+.tv-warning.show{display:flex}
+.tv-stop-list{display:flex;flex-direction:column;gap:8px;max-height:55vh;overflow-y:auto}
+.tv-stop{border:1px solid var(--bdr);border-radius:var(--r-lg);overflow:hidden;transition:all .2s}
+.tv-stop.completed{border-color:var(--teal);opacity:.75}
+.tv-stop.active-stop{border-color:var(--sky);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+.tv-stop.warning-stop{border-color:var(--amber);box-shadow:0 0 0 3px rgba(217,119,6,.12)}
+.tv-stop-header{padding:11px 14px;display:flex;align-items:center;gap:10px;background:var(--sfc)}
+.tv-stop-icon{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.tv-stop-icon.done-icon{background:var(--teal-l);color:var(--teal)}
+.tv-stop-icon.active-icon{background:var(--sky-l);color:var(--sky)}
+.tv-stop-icon.pending-icon{background:var(--sfc2);color:var(--txt3)}
+.tv-stop-icon.warn-icon{background:var(--amber-l);color:var(--amber)}
+.tv-stop-info{flex:1;min-width:0}
+.tv-stop-name{font-size:13px;font-weight:600;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tv-stop-times{font-size:11px;color:var(--txt3);margin-top:2px;display:flex;gap:10px;flex-wrap:wrap}
+.tv-stop-eta{font-size:12px;font-weight:700;white-space:nowrap}
+.tv-stop-eta.on-time{color:var(--teal)}
+.tv-stop-eta.late{color:var(--coral)}
+.tv-stop-eta.soon{color:var(--amber)}
+.tv-stop-body{padding:0 14px 12px;border-top:1px solid var(--bdr);background:var(--sfc)}
+.tv-stop-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.tv-btn-checkin{padding:7px 14px;background:var(--sky);color:white;border:none;border-radius:var(--r-sm);font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font-body);transition:all .15s}
+.tv-btn-checkin:hover{background:var(--sky-d)}
+.tv-btn-depart{padding:7px 14px;background:var(--teal);color:white;border:none;border-radius:var(--r-sm);font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font-body);transition:all .15s}
+.tv-btn-depart:hover{background:#0F766E}
+.tv-dwell-row{display:flex;align-items:center;gap:8px;margin-top:8px}
+.tv-dwell-label{font-size:12px;color:var(--txt2)}
+.tv-dwell-input{width:70px;padding:5px 8px;border:1px solid var(--bdr2);border-radius:var(--r-sm);font-size:13px;font-family:var(--font-body);background:var(--sfc);color:var(--txt);text-align:center}
+.tv-dwell-unit{font-size:12px;color:var(--txt3)}
+.tv-meal-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;background:var(--amber-l);color:var(--amber)}
+.tv-dist-line{font-size:11px;color:var(--txt3);padding:6px 14px;background:var(--sfc2);display:flex;gap:12px;align-items:center}
+.tv-checkin-time{font-size:11px;color:var(--teal);font-weight:600}
 </style>
 </head>
 <body>
@@ -477,7 +533,13 @@ input[type=range]::-webkit-slider-thumb{appearance:none;width:18px;height:18px;b
         <div class="day-pills" id="day-pills"></div>
         <div id="route-days"></div>
       </div>
-      <div class="bnav"><button class="btn" onclick="goStep(4)" data-i18n="prev">← Back</button><button class="btn btn-primary" onclick="goStep(6)" data-i18n="next">Map & Weather →</button></div>
+      <div class="bnav">
+        <button class="btn" onclick="goStep(4)" data-i18n="prev">← Back</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary" style="background:var(--green);border-color:var(--green)" onclick="openTravelMode()">🚗 Start Trip</button>
+          <button class="btn btn-primary" onclick="goStep(6)" data-i18n="next">Map & Weather →</button>
+        </div>
+      </div>
     </div>
 
     <!-- ── STEP 6 ── -->
@@ -2314,6 +2376,395 @@ function showToast(msg){ const t=document.getElementById('toast'); t.textContent
     bd.addEventListener('click', function(ev){ if(ev.target===bd) bd.classList.remove('open'); });
   });
 })();
+
+/* ═══════════════════════════════════════════════════
+   TRAVEL MODE — Live Trip Tracking
+═══════════════════════════════════════════════════ */
+let tvState = {
+  active: false,
+  dayIdx: 0,       // which day we're tracking
+  stops: [],        // flat list of all stops for the day
+  currentStopIdx: 0,
+  departTime: null, // Date object: actual departure of current stop
+  tripStartTime: null,
+  arriveByTime: null,
+  avgSpeed: 65,
+  checkins: {},     // stopIdx -> {arrivalTime, departureTime, dwell}
+};
+
+// Dwell times in minutes by stop type
+const DWELL_DEFAULTS = {
+  'rest':    20,
+  'gas':     15,
+  'meal':    45,
+  'sight':   90,
+  'hotel':   0,
+  'pass':    0,
+  'drive':   0,
+};
+
+function mealAt(minutesSinceMidnight) {
+  if(minutesSinceMidnight >= 420  && minutesSinceMidnight <= 540)  return 'breakfast'; // 7-9am
+  if(minutesSinceMidnight >= 690  && minutesSinceMidnight <= 810)  return 'lunch';     // 11:30-1:30pm
+  if(minutesSinceMidnight >= 1050 && minutesSinceMidnight <= 1170) return 'dinner';    // 5:30-7:30pm
+  return null;
+}
+
+function timeStr(date) {
+  if(!date) return '—';
+  return date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', hour12:true});
+}
+function minToTime(baseDate, addMins) {
+  const d = new Date(baseDate.getTime() + addMins*60000);
+  return d;
+}
+function diffMins(a, b) { return (b-a)/60000; }
+
+function openTravelMode() {
+  if(!routeData || !routeData.days || routeData.days.length===0) {
+    showToast(lang==='ko'?'먼저 루트를 생성하세요.':'Generate a route first.');
+    return;
+  }
+  // Populate day selector
+  const sel = document.getElementById('tv-day-select');
+  sel.innerHTML = '';
+  routeData.days.forEach((d,i)=>{
+    const opt = document.createElement('option');
+    opt.value = i;
+    const dateStr = d.date ? d.date.toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '';
+    opt.textContent = 'Day '+d.day+(dateStr?' ('+dateStr+')':'');
+    sel.appendChild(opt);
+  });
+  // Default arrive-by from start date end
+  document.getElementById('tv-arrive-by').value = '18:00';
+  // Reset UI
+  document.getElementById('tv-setup').style.display='';
+  document.getElementById('tv-progress').style.display='none';
+  document.getElementById('tv-stop-list').innerHTML='';
+  document.getElementById('tv-warning').classList.remove('show');
+  document.getElementById('travel-mode-overlay').classList.add('open');
+}
+
+function closeTravelMode() {
+  document.getElementById('travel-mode-overlay').classList.remove('open');
+}
+
+function buildStopsForDay(dayIdx) {
+  const d = routeData.days[dayIdx];
+  if(!d) return [];
+  const stops = [];
+
+  // Departure city
+  stops.push({name: d.from, type:'drive', icon:'🚗',
+    distMi: 0, dwell: 0, isMealCandidate: false});
+
+  // Pass-through cities
+  const segMi = d.estMiles > 0 ? Math.round(d.estMiles / Math.max(1, 1+(d.passThrough||[]).length+( d.restStop?1:0))) : 0;
+  let cumMi = 0;
+  (d.passThrough||[]).forEach(pt=>{
+    cumMi += segMi;
+    stops.push({name:pt, type:'pass', icon:'🛣', distMi:segMi, dwell:5, isMealCandidate:true});
+  });
+
+  // Rest stop
+  if(d.restStop){
+    const pos = stops.length;
+    const miSoFar = segMi*(pos);
+    stops.push({name:d.restStop, type:'rest', icon:'🛑', distMi:segMi, dwell:20, isMealCandidate:false});
+  }
+
+  // AI-recommended sights
+  (d.sights||[]).forEach((s,si)=>{
+    stops.push({name:s, type:'sight', icon:'📍', distMi:Math.floor(Math.random()*8+3), dwell:90, isMealCandidate:si===1});
+  });
+
+  // Overnight stop
+  if(d.to !== d.from || stops.length===1){
+    const finalMi = Math.max(0, d.estMiles - cumMi);
+    stops.push({name:d.to + (d.overnight?(' — '+d.overnight.name):''), type:'hotel', icon: d.overnight?.type==='camp'?'⛺':'🏨',
+      distMi: finalMi, dwell:0, isMealCandidate:true, isDestination:true});
+  }
+
+  return stops;
+}
+
+function startTracking() {
+  const dayIdx = parseInt(document.getElementById('tv-day-select').value) || 0;
+  const [dh, dm] = document.getElementById('tv-depart-time').value.split(':').map(Number);
+  const [ah, am] = document.getElementById('tv-arrive-by').value.split(':').map(Number);
+  const speed = parseFloat(document.getElementById('tv-speed').value) || 65;
+
+  const today = new Date();
+  const tripStart = new Date(today); tripStart.setHours(dh, dm, 0, 0);
+  const arriveBy  = new Date(today); arriveBy.setHours(ah, am, 0, 0);
+
+  const stops = buildStopsForDay(dayIdx);
+
+  tvState = {
+    active: true, dayIdx,
+    stops, currentStopIdx: 0,
+    departTime: new Date(tripStart),
+    tripStartTime: new Date(tripStart),
+    arriveByTime: arriveBy,
+    avgSpeed: speed,
+    checkins: {}
+  };
+
+  document.getElementById('tv-setup').style.display='none';
+  document.getElementById('tv-progress').style.display='flex';
+
+  const d = routeData.days[dayIdx];
+  document.getElementById('tv-title').textContent = '🚗 Day '+d.day+': '+d.from+' → '+d.to;
+
+  renderTravelStops();
+}
+
+function calcETA(fromStopIdx, fromTime) {
+  // Calculate rolling ETA for each stop from fromStopIdx onward
+  let t = new Date(fromTime);
+  const etas = [];
+  const stops = tvState.stops;
+  for(let i=0; i<stops.length; i++){
+    if(i < fromStopIdx){
+      const ci = tvState.checkins[i];
+      etas.push(ci ? new Date(ci.arrivalTime) : null);
+      continue;
+    }
+    if(i === fromStopIdx){
+      etas.push(new Date(t));
+      // Apply dwell at current stop
+      const checkin = tvState.checkins[i];
+      const dwell = checkin ? checkin.dwell : (stops[i].dwell||0);
+      // Check if meal applies
+      const minsFromMidnight = t.getHours()*60+t.getMinutes();
+      const meal = mealAt(minsFromMidnight);
+      const mealMins = meal ? 40 : 0;
+      t = minToTime(t, dwell + mealMins);
+      continue;
+    }
+    // Drive time to next stop
+    const driveHrs = stops[i].distMi / tvState.avgSpeed;
+    t = minToTime(t, driveHrs*60);
+    etas.push(new Date(t));
+    // Dwell at this stop
+    const dwell = stops[i].dwell||0;
+    const minsFromMidnight = t.getHours()*60+t.getMinutes();
+    const meal = stops[i].isMealCandidate ? mealAt(minsFromMidnight) : null;
+    const mealMins = meal ? 40 : 0;
+    t = minToTime(t, dwell + mealMins);
+  }
+  return {etas, finalETA: t};
+}
+
+function renderTravelStops() {
+  const stops = tvState.stops;
+  const list = document.getElementById('tv-stop-list');
+  list.innerHTML='';
+
+  // Calculate ETAs from current position
+  const fromIdx = tvState.currentStopIdx;
+  const fromTime = tvState.checkins[fromIdx]?.departureTime || tvState.departTime;
+  const {etas, finalETA} = calcETA(fromIdx, fromTime);
+
+  // Progress
+  const done = Object.keys(tvState.checkins).filter(k=>tvState.checkins[k].departureTime).length;
+  const total = stops.length;
+  document.getElementById('tv-prog-stops').textContent = done+'/'+total+' stops';
+  document.getElementById('tv-prog-fill').style.width = Math.round(done/total*100)+'%';
+
+  // ETA display + warning
+  const arriveBy = tvState.arriveByTime;
+  const etaStr = timeStr(finalETA);
+  const late = finalETA > arriveBy;
+  const minsLate = late ? Math.round(diffMins(arriveBy, finalETA)) : 0;
+  document.getElementById('tv-eta-display').textContent = 'ETA '+etaStr;
+  document.getElementById('tv-eta-display').style.color = late ? 'var(--coral)' : 'var(--teal)';
+  document.getElementById('tv-subtitle').textContent = late
+    ? (lang==='ko'?'⚠️ 예정보다 '+minsLate+'분 늦어질 수 있습니다':'⚠️ Running ~'+minsLate+' min late')
+    : (lang==='ko'?'정상 진행 중':'On schedule ✓');
+
+  // Warning banner
+  const warn = document.getElementById('tv-warning');
+  if(late && minsLate>15){
+    warn.classList.add('show');
+    document.getElementById('tv-warning-msg').textContent =
+      lang==='ko'
+        ? '⏰ '+minsLate+'분 지연 예상. 일정 단축이 필요합니다.'
+        : '⏰ Running '+minsLate+' min late. Consider skipping optional stops to reach your destination by '+timeStr(arriveBy)+'.';
+  } else { warn.classList.remove('show'); }
+
+  stops.forEach((stop, idx)=>{
+    const checkin = tvState.checkins[idx];
+    const isCompleted = checkin && checkin.departureTime;
+    const isActive = idx === tvState.currentStopIdx && !isCompleted;
+    const eta = etas[idx];
+    const etaDiff = eta && arriveBy ? diffMins(arriveBy, finalETA) : 0;
+    const isWarning = !isCompleted && eta && finalETA > arriveBy && etaDiff > 10;
+
+    const el = document.createElement('div');
+    el.className = 'tv-stop' + (isCompleted?' completed':'') + (isActive?' active-stop':'') + (isWarning&&!isCompleted?' warning-stop':'');
+
+    // Icon
+    const iconClass = isCompleted?'done-icon':isActive?'active-icon':isWarning?'warn-icon':'pending-icon';
+    const iconEmoji = isCompleted?'✓':stop.icon;
+
+    // ETA display
+    let etaDisplay = '';
+    if(isCompleted && checkin.arrivalTime){
+      etaDisplay = '<span class="tv-checkin-time">✓ '+timeStr(checkin.arrivalTime)+'</span>';
+    } else if(eta){
+      const onTime = finalETA <= arriveBy;
+      etaDisplay = '<span class="tv-stop-eta '+(onTime?'on-time':'late')+'">ETA '+timeStr(eta)+'</span>';
+    }
+
+    // Meal indicator
+    const mealCheck = eta ? mealAt(eta.getHours()*60+eta.getMinutes()) : null;
+    const mealBadge = (stop.isMealCandidate && mealCheck && !isCompleted)
+      ? '<span class="tv-meal-badge">🍽 '+mealCheck+' (+40 min)</span>' : '';
+
+    // Drive info line
+    const driveInfo = stop.distMi>0
+      ? '<div class="tv-dist-line">🚗 '+stop.distMi+' mi · ~'+((stop.distMi/tvState.avgSpeed*60)|0)+' min drive</div>'
+      : '';
+
+    // Dwell info
+    const dwellDefault = checkin ? checkin.dwell : (stop.dwell||0);
+
+    // Body content (shown for active and not-yet-completed)
+    let body = '';
+    if(!isCompleted){
+      body = `<div class="tv-stop-body">
+        ${mealBadge?'<div style="margin-bottom:8px">'+mealBadge+'</div>':''}
+        <div class="tv-dwell-row">
+          <span class="tv-dwell-label">${lang==='ko'?'체류 시간:':'Time at stop:'}</span>
+          <input type="number" class="tv-dwell-input" value="${dwellDefault}" min="0" max="360"
+            onchange="updateDwell(${idx}, this.value)" id="dwell-${idx}">
+          <span class="tv-dwell-unit">min</span>
+        </div>
+        <div class="tv-stop-actions">
+          ${!checkin ? `<button class="tv-btn-checkin" onclick="doCheckin(${idx})">📍 ${lang==='ko'?'체크인':'Check In'}</button>` : ''}
+          ${checkin && !checkin.departureTime ? `<button class="tv-btn-depart" onclick="doDepart(${idx})">🚀 ${lang==='ko'?'출발':'Depart'}</button>` : ''}
+        </div>
+      </div>`;
+    } else {
+      // Show times for completed
+      const arr = timeStr(checkin.arrivalTime);
+      const dep = checkin.departureTime ? timeStr(checkin.departureTime) : '—';
+      body = `<div class="tv-stop-body" style="display:flex;gap:16px;font-size:12px;color:var(--txt3)">
+        <span>✅ Arrived: <strong>${arr}</strong></span>
+        <span>🚀 Departed: <strong>${dep}</strong></span>
+        <span>⏱ ${checkin.dwell} min</span>
+      </div>`;
+    }
+
+    el.innerHTML = `
+      ${driveInfo}
+      <div class="tv-stop-header">
+        <div class="tv-stop-icon ${iconClass}">${iconEmoji}</div>
+        <div class="tv-stop-info">
+          <div class="tv-stop-name">${stop.name}</div>
+          <div class="tv-stop-times">
+            ${stop.type==='sight'?'<span>📍 sight · '+stop.dwell+' min visit</span>':''}
+            ${stop.type==='rest'?'<span>🛑 rest stop</span>':''}
+            ${stop.type==='gas'?'<span>⛽ fuel stop</span>':''}
+            ${etaDisplay}
+          </div>
+        </div>
+      </div>
+      ${body}`;
+    list.appendChild(el);
+  });
+}
+
+function updateDwell(idx, val){
+  const mins = parseInt(val)||0;
+  if(!tvState.checkins[idx]) tvState.checkins[idx]={dwell:mins};
+  else tvState.checkins[idx].dwell = mins;
+  tvState.stops[idx].dwell = mins;
+  renderTravelStops();
+}
+
+function doCheckin(idx){
+  const now = new Date();
+  if(!tvState.checkins[idx]) tvState.checkins[idx]={dwell: tvState.stops[idx].dwell||0};
+  tvState.checkins[idx].arrivalTime = now;
+  tvState.currentStopIdx = idx;
+  showToast('✅ Checked in at '+tvState.stops[idx].name.split(' — ')[0]+' · '+timeStr(now));
+  renderTravelStops();
+  autoSave();
+}
+
+function doDepart(idx){
+  const now = new Date();
+  if(!tvState.checkins[idx]) tvState.checkins[idx]={dwell:0};
+  tvState.checkins[idx].departureTime = now;
+  tvState.currentStopIdx = idx+1;
+  // Recalculate ETAs from this departure
+  tvState.departTime = now;
+  showToast('🚀 Departed '+tvState.stops[idx].name.split(' — ')[0]+' at '+timeStr(now));
+  renderTravelStops();
+  autoSave();
+}
+
 </script>
+
+<!-- ── TRAVEL MODE OVERLAY ─────────────────────────────── -->
+<div id="travel-mode-overlay">
+  <div id="travel-panel">
+    <div class="tv-header">
+      <div class="tv-header-left">
+        <div class="tv-live-dot"></div>
+        <div>
+          <div class="tv-title" id="tv-title">🚗 Trip in Progress</div>
+          <div class="tv-subtitle" id="tv-subtitle">Live tracking active</div>
+        </div>
+      </div>
+      <button class="tv-close" onclick="closeTravelMode()">✕ Close</button>
+    </div>
+    <div class="tv-body">
+      <!-- Setup row -->
+      <div class="tv-setup" id="tv-setup">
+        <div class="tv-setup-row">
+          <div>
+            <div class="tv-label">Departure Time</div>
+            <input type="time" class="tv-input" id="tv-depart-time" value="08:00">
+          </div>
+          <div>
+            <div class="tv-label">Must Arrive By</div>
+            <input type="time" class="tv-input" id="tv-arrive-by" value="18:00">
+          </div>
+        </div>
+        <div class="tv-setup-row">
+          <div>
+            <div class="tv-label">Avg Speed (mph)</div>
+            <input type="number" class="tv-input" id="tv-speed" value="65" min="30" max="85">
+          </div>
+          <div>
+            <div class="tv-label">Day</div>
+            <select class="tv-input" id="tv-day-select"></select>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="startTracking()" style="width:100%;justify-content:center;padding:11px">🚀 Start Trip</button>
+      </div>
+      <!-- Progress bar -->
+      <div class="tv-progress" id="tv-progress" style="display:none">
+        <div>
+          <div style="font-size:11px;color:var(--txt3)" id="tv-prog-label">Progress</div>
+          <div style="font-size:16px;font-weight:700;color:var(--txt)" id="tv-prog-stops">0/0 stops</div>
+        </div>
+        <div class="tv-progress-bar-wrap"><div class="tv-progress-fill" id="tv-prog-fill" style="width:0%"></div></div>
+        <div class="tv-progress-txt" id="tv-eta-display">ETA —</div>
+      </div>
+      <!-- Warning banner -->
+      <div class="tv-warning" id="tv-warning">
+        <span style="font-size:16px">⚠️</span>
+        <span id="tv-warning-msg"></span>
+      </div>
+      <!-- Stop list -->
+      <div class="tv-stop-list" id="tv-stop-list"></div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
