@@ -1007,22 +1007,28 @@ function generateRoute(){
   if(!origin||!dest){ showToast(lang==='ko'?'출발지와 목적지를 입력하세요.':'Please enter origin and destination.'); return; }
 
   goStep(5);
-  document.getElementById('ai-banner').style.display='flex';
+  const banner=document.getElementById('ai-banner');
+  banner.style.display='flex';
+  banner.innerHTML='<div class="ai-spin"></div><span class="ai-text">'+(lang==='ko'?'AI가 '+transport+' 기반으로 최적 루트를 계산 중…':'AI is calculating your '+transport+' route…')+'</span>';
   document.getElementById('route-content').style.display='none';
 
-  const wps=getWPs();
-  const startDate=new Date(document.getElementById('start-date').value);
-  const endDate=new Date(document.getElementById('end-date').value);
-  const nights=Math.max(1,Math.round((endDate-startDate)/86400000));
-  const maxMiPerDay=parseInt(document.getElementById('d-mi').value)||350;
-  const isCamping=transport==='car-camp'||category==='camping';
-  const isCar=transport.startsWith('car');
+  const wps        = getWPs();
+  const startDate  = new Date(document.getElementById('start-date').value);
+  const endDate    = new Date(document.getElementById('end-date').value);
+  const nights     = Math.max(1, Math.round((endDate-startDate)/86400000));
+  const maxMiPerDay= parseInt(document.getElementById('d-mi').value)||350;
+  const maxHrsPerDay= parseInt(document.getElementById('d-hrs').value)||6;
+  const isCamping  = transport==='car-camp'||category==='camping';
+  const mode       = transport; // 'fly-rent' | 'car-camp' | 'car-hotel'
 
-  // Build route with error handling
   setTimeout(()=>{
     try{
-      routeData = buildUSRoute(origin, dest, wps, startDate, nights, maxMiPerDay, isCamping, isCar);
-      document.getElementById('ai-banner').style.display='none';
+      if(mode==='fly-rent'){
+        routeData = buildFlyRoute(origin, dest, wps, startDate, nights, isCamping);
+      } else {
+        routeData = buildUSRoute(origin, dest, wps, startDate, nights, maxMiPerDay, maxHrsPerDay, isCamping);
+      }
+      banner.style.display='none';
       document.getElementById('route-content').style.display='';
       renderRouteUI();
       renderWeather();
@@ -1030,15 +1036,10 @@ function generateRoute(){
       renderEvents();
       showToast(lang==='ko'?'✨ 루트가 생성되었습니다!':'✨ Route generated!');
     } catch(err){
-      document.getElementById('ai-banner').style.display='none';
       console.error('Route error:', err);
-      // Show a helpful error in the banner area
-      const banner = document.getElementById('ai-banner');
-      banner.style.display='flex';
-      banner.innerHTML='<span style="color:var(--coral)">⚠️ Route error: '+err.message+'. Try different city names.</span>';
-      showToast('Route error: '+err.message);
+      banner.innerHTML='<span style="color:var(--coral)">⚠️ '+(lang==='ko'?'오류: '+err.message+'. 도시명을 확인해주세요.':'Error: '+err.message+'. Please check city names.')+'</span>';
     }
-  }, 1800);
+  }, 1600);
 }
 
 /* ═══════════════════════════════════════════════════
@@ -1403,7 +1404,149 @@ function normCity(input){
 }
 
 // ── Build the full day-by-day US road trip ─────────────
-function buildUSRoute(origin, dest, wps, startDate, nights, maxMiPerDay, isCamping, isCar){
+
+// ═══════════════════════════════════════════════════
+//  FLY + RENT ROUTE BUILDER
+//  Day 1: Travel day (fly origin→dest, pick up rental)
+//  Day 2+: Local exploration from rental base
+// ═══════════════════════════════════════════════════
+function buildFlyRoute(origin, dest, wps, startDate, nights, isCamping){
+  const normOrigin = normCity(origin)||origin;
+  const normDest   = normCity(dest)||dest;
+  const wpCities   = (wps||[]).map(w=>({name:normCity(w.name)||w.name, type:w.type}));
+
+  // Realistic flight time estimate using haversine
+  const flightMi   = haversine(normOrigin, normDest);
+  const flightHrs  = Math.max(1.0, +(flightMi/500).toFixed(1)); // ~500 mph avg
+  const totalTravelHrs = flightHrs + 3.5; // airport time each end
+
+  // Nearest major airport for each city
+  const airport = c=>{
+    const cn = c.split(',')[0];
+    const st = (c.split(',')[1]||'').trim();
+    const airports = {
+      'Dallas':'Dallas/Fort Worth International (DFW)',
+      'Fort Worth':'Dallas/Fort Worth International (DFW)',
+      'McKinney':'Dallas/Fort Worth International (DFW)',
+      'Houston':'George Bush Intercontinental (IAH)',
+      'Austin':'Austin-Bergstrom International (AUS)',
+      'San Antonio':'San Antonio International (SAT)',
+      'New York':'John F. Kennedy International (JFK)',
+      'Los Angeles':'Los Angeles International (LAX)',
+      'Chicago':'O'Hare International (ORD)',
+      'Atlanta':'Hartsfield-Jackson Atlanta International (ATL)',
+      'Miami':'Miami International (MIA)',
+      'Orlando':'Orlando International (MCO)',
+      'Tampa':'Tampa International (TPA)',
+      'Nashville':'Nashville International (BNA)',
+      'Charlotte':'Charlotte Douglas International (CLT)',
+      'Denver':'Denver International (DEN)',
+      'Phoenix':'Phoenix Sky Harbor International (PHX)',
+      'Las Vegas':'Harry Reid International (LAS)',
+      'Seattle':'Seattle-Tacoma International (SEA)',
+      'San Francisco':'San Francisco International (SFO)',
+      'Boston':'Boston Logan International (BOS)',
+      'Washington':'Ronald Reagan Washington National (DCA)',
+      'Minneapolis':'Minneapolis-St. Paul International (MSP)',
+      'Detroit':'Detroit Metropolitan Wayne County (DTW)',
+      'Philadelphia':'Philadelphia International (PHL)',
+      'Portland':'Portland International (PDX)',
+      'Salt Lake City':'Salt Lake City International (SLC)',
+      'New Orleans':'Louis Armstrong New Orleans International (MSY)',
+      'Jacksonville':'Jacksonville International (JAX)',
+      'Memphis':'Memphis International (MEM)',
+      'Birmingham':'Birmingham-Shuttlesworth International (BHM)',
+      'Pittsburgh':'Pittsburgh International (PIT)',
+      'Kansas City':'Kansas City International (MCI)',
+      'St. Louis':'St. Louis Lambert International (STL)',
+      'Raleigh':'Raleigh-Durham International (RDU)',
+      'Indianapolis':'Indianapolis International (IND)',
+      'Columbus':'John Glenn Columbus International (CMH)',
+      'Louisville':'Louisville Muhammad Ali International (SDF)',
+      'Boise':'Boise Airport (BOI)',
+      'Albuquerque':'Albuquerque International Sunport (ABQ)',
+      'El Paso':'El Paso International (ELP)',
+      'Tucson':'Tucson International (TUS)',
+      'Pensacola':'Pensacola International (PNS)',
+      'Tallahassee':'Tallahassee International (TLH)',
+    };
+    return airports[cn] || cn+' Regional Airport';
+  };
+
+  // Rental car info at destination
+  const rentalBrands = ['Enterprise','Hertz','Avis','National','Budget','Alamo'];
+  const rentalBrand  = rentalBrands[Math.floor(Math.random()*rentalBrands.length)];
+  const rentalPrice  = Math.floor(Math.random()*30+45);
+
+  // ── Day 1: Travel day ──────────────────────────────
+  const days = [];
+  const dayDate = d=>{ const dd=new Date(startDate); dd.setDate(startDate.getDate()+d-1); return dd; };
+
+  days.push({
+    day:1, date:dayDate(1),
+    mode:'fly',
+    from:normOrigin, to:normDest,
+    flightMi, flightHrs,
+    totalTravelHrs: +totalTravelHrs.toFixed(1),
+    depAirport: airport(normOrigin),
+    arrAirport: airport(normDest),
+    rentalBrand, rentalPrice,
+    isLast: nights===0,
+    overnight: nights>0 ? (isCamping?suggestCampground(normDest):suggestHotel(normDest)) : null,
+    sights: [],
+    passThrough: [],
+    restStop: null,
+    estMiles: 0, estHrs: 0,
+    longDay: false,
+    hwy: ''
+  });
+
+  // ── Day 2…N: Local exploration days ───────────────
+  // Distribute waypoints across remaining days
+  const exploreDays = nights; // last night = last explore day
+  const allVisits   = [...wpCities.map(w=>w.name), ...getCitySights(normDest)];
+  const visitsPerDay= Math.max(1, Math.ceil(allVisits.length / Math.max(1,exploreDays)));
+
+  for(let d=2; d<=nights+1; d++){
+    const isLast = d===nights+1;
+    const dayVisits = allVisits.splice(0, visitsPerDay);
+    // Local driving: short loops from rental base
+    const localMi   = dayVisits.length * Math.floor(Math.random()*15+8);
+    days.push({
+      day:d, date:dayDate(d),
+      mode:'explore',
+      from:normDest, to:normDest,
+      flightMi:0, flightHrs:0,
+      totalTravelHrs:0,
+      depAirport:'', arrAirport:'',
+      rentalBrand, rentalPrice,
+      isLast,
+      overnight: isLast?null:(isCamping?suggestCampground(normDest):suggestHotel(normDest)),
+      sights: dayVisits,
+      passThrough:[],
+      restStop:null,
+      estMiles: localMi,
+      estHrs: +(localMi/35).toFixed(1), // city driving ~35 mph avg
+      longDay:false,
+      hwy:'Local roads'
+    });
+  }
+
+  // Last day: return rental + fly home (if round trip implied)
+  if(nights>0){
+    const last=days[days.length-1];
+    last.returnFlight=true;
+    last.depAirport=airport(normDest);
+    last.arrAirport=airport(normOrigin);
+    last.returnFlightHrs=flightHrs;
+  }
+
+  const allStops=[normOrigin,normDest];
+  return { origin:normOrigin, dest:normDest, allStops, days,
+    totalMiles:Math.round(flightMi), nights, isCamping, mode:'fly-rent', flightHrs };
+}
+
+function buildUSRoute(origin, dest, wps, startDate, nights, maxMiPerDay, maxHrsPerDay, isCamping){
   const normOrigin = normCity(origin) || origin;
   const normDest   = normCity(dest)   || dest;
   const wpCities   = (wps||[]).map(w=>normCity(w.name)||w.name);
@@ -1542,7 +1685,11 @@ function renderRouteUI(){
   if(!routeData) return;
   const {days,totalMiles,nights,isCamping}=routeData;
 
-  document.getElementById('rt-miles').textContent=totalMiles.toLocaleString()+' mi';
+  // Summary metrics — different labels per mode
+  const isFly = routeData.mode==='fly-rent';
+  document.getElementById('rt-miles').textContent = isFly
+    ? (routeData.flightHrs.toFixed(1)+' hr flight')
+    : (totalMiles.toLocaleString()+' mi');
   document.getElementById('rt-dur').textContent= lang==='ko'?`${nights}박 ${nights+1}일`:`${nights}N/${nights+1}D`;
   document.getElementById('rt-stays').textContent=nights;
   document.getElementById('rt-visits').textContent=days.reduce((s,d)=>s+d.sights.length,0);
@@ -1558,76 +1705,148 @@ function renderRouteUI(){
     const dateStr=d.date.toLocaleDateString(lang==='ko'?'ko-KR':'en-US',{month:'short',day:'numeric'});
     const card=document.createElement('div'); card.className='route-day'; card.dataset.day=d.day;
     const isOpen=i===0;
-    // Build pass-through stops HTML
+    const isFlyMode = routeData.mode==='fly-rent';
+
     const ptHtml = (d.passThrough||[]).map(pt=>`
-      <div class="tl-stop">
-        <div class="tl-dot d-mid"></div>
+      <div class="tl-stop"><div class="tl-dot d-mid"></div>
         <div class="stop-name">${pt}</div>
         <div class="stop-meta"><span>🛣 ${lang==='ko'?'경유':'Pass through'}</span><span style="color:var(--sky);font-size:11px">${d.hwy}</span></div>
       </div>`).join('');
-
-    // Build sights HTML
     const sightsHtml = (d.sights||[]).map(s=>`
-      <div class="tl-stop">
-        <div class="tl-dot d-mid"></div>
+      <div class="tl-stop"><div class="tl-dot d-mid"></div>
         <div class="stop-name">${s}</div>
-        <div class="stop-meta"><span>📍 ${lang==='ko'?'AI 추천':'AI Recommended'}</span></div>
+        <div class="stop-meta"><span>📍 ${lang==='ko'?'AI 추천 명소':'AI Recommended'}</span></div>
       </div>`).join('');
-
-    // Rest stop
-    const restHtml = d.restStop ? `
-      <div class="tl-stop">
-        <div class="tl-dot" style="color:#6366F1;background:#6366F1"></div>
+    const restHtml = d.restStop?`
+      <div class="tl-stop"><div class="tl-dot" style="color:#6366F1;background:#6366F1"></div>
         <div class="stop-name">🛑 ${d.restStop}</div>
         <div class="stop-meta"><span>${lang==='ko'?'휴게소 / 주유 추천':'Rest Area / Fuel Stop'}</span></div>
-      </div>` : '';
+      </div>`:'';
 
-    // Drive info chip — warn if long drive day
-    const driveBg  = d.longDay ? 'var(--amber-l)' : 'var(--sky-l)';
-    const driveClr = d.longDay ? 'var(--amber)'   : 'var(--sky-d)';
-    const longWarn = d.longDay ? ` <span style="color:var(--amber);font-weight:600">(${lang==='ko'?'장거리 구간':'Long drive — consider splitting'}) ⚠️</span>` : '';
-    const driveChip = d.estMiles>0
-      ? `<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:${driveBg};border-radius:var(--r-md);margin-bottom:14px;font-size:12px;color:${driveClr}">
-          🚗 <strong>${d.estMiles} mi</strong>&nbsp;·&nbsp;~${d.estHrs} hrs driving&nbsp;·&nbsp;<span style="color:var(--txt3)">${d.hwy||'Interstate'}</span>${longWarn}
-         </div>`
-      : `<div style="padding:8px 12px;background:var(--teal-l);border-radius:var(--r-md);margin-bottom:14px;font-size:12px;color:var(--teal)">📍 ${lang==='ko'?'목적지 체류일':'Rest / Explore Day at Destination'}</div>`;
+    let modeChip='', headerMeta='', timelineStart='', timelineEnd='', extraActions='';
+
+    if(isFlyMode && d.mode==='fly'){
+      // ── FLIGHT DAY ──
+      const fts = d.flightHrs<1 ? Math.round(d.flightHrs*60)+' min' : d.flightHrs.toFixed(1)+' hrs';
+      headerMeta = '✈️ ~'+fts+' flight · ~'+d.totalTravelHrs+'h total';
+      modeChip=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+        <div style="padding:10px 14px;background:var(--sky-l);border-radius:var(--r-md);border:1px solid var(--sky-m)">
+          <div style="font-size:11px;color:var(--sky);font-weight:700">${lang==='ko'?'✈️ 항공편':'✈️ FLIGHT'}</div>
+          <div style="font-size:14px;font-weight:600;margin-top:4px">~${fts}</div>
+          <div style="font-size:11px;color:var(--txt3);margin-top:2px">~${d.flightMi.toLocaleString()} mi as-the-crow-flies</div>
+        </div>
+        <div style="padding:10px 14px;background:var(--teal-l);border-radius:var(--r-md);border:1px solid #5DCAA5">
+          <div style="font-size:11px;color:var(--teal);font-weight:700">${lang==='ko'?'🚗 렌트카':'🚗 RENTAL CAR'}</div>
+          <div style="font-size:14px;font-weight:600;margin-top:4px">${d.rentalBrand}</div>
+          <div style="font-size:11px;color:var(--txt3);margin-top:2px">~$${d.rentalPrice}/day</div>
+        </div></div>`;
+      timelineStart=`
+        <div class="tl-stop"><div class="tl-dot d-start"></div>
+          <div class="stop-name">${d.from}</div>
+          <div class="stop-meta"><span>🕗 ${lang==='ko'?'공항으로 출발 (3시간 전 권장)':'Head to airport (3 hrs before)'}</span></div>
+        </div>
+        <div class="tl-stop"><div class="tl-dot" style="color:var(--sky);background:var(--sky)"></div>
+          <div class="stop-name">✈️ ${d.depAirport}</div>
+          <div class="stop-meta"><span>${lang==='ko'?'탑승':'Depart'}</span><span style="color:var(--sky)">~${fts} flight</span></div>
+        </div>`;
+      timelineEnd=`
+        <div class="tl-stop"><div class="tl-dot" style="color:#7C3AED;background:#7C3AED"></div>
+          <div class="stop-name">🛬 ${d.arrAirport}</div>
+          <div class="stop-meta"><span>${lang==='ko'?'도착 · 수하물 수취':'Land · Baggage claim'}</span></div>
+        </div>
+        <div class="tl-stop"><div class="tl-dot d-mid"></div>
+          <div class="stop-name">🚗 ${lang==='ko'?'렌트카 픽업':'Pick up rental'} — ${d.rentalBrand}</div>
+          <div class="stop-meta"><span>${lang==='ko'?'공항 렌트 센터':'Airport rental center'}</span><span>~$${d.rentalPrice}/day</span></div>
+        </div>
+        <div class="tl-stop"><div class="tl-dot ${d.isLast?'d-end':'d-stay'}"></div>
+          <div class="stop-name">${d.to} ${d.isLast?'🏁':''}</div>
+          <div class="stop-meta"><span>${lang==='ko'?'호텔 체크인':'Hotel check-in'}</span></div>
+          ${d.overnight?`<div class="stay-card"><div style="font-size:20px">🏨</div>
+            <div class="stay-info"><div class="stay-name">${d.overnight.name}</div><div class="stay-detail">★ ${d.overnight.stars} · Check-in 3:00 PM</div></div>
+            <div class="stay-price">${d.overnight.price}</div></div>`:''}
+        </div>`;
+      extraActions=`<button class="btn btn-sm" onclick="window.open('https://www.google.com/travel/flights?q=${encodeURIComponent(d.from+' to '+d.to)}','_blank')">✈️ ${lang==='ko'?'항공편 검색':'Search Flights'}</button>
+        <button class="btn btn-sm" onclick="window.open('https://www.enterprise.com','_blank')">🚗 ${lang==='ko'?'렌트카 예약':'Book Rental'}</button>`;
+
+    } else if(isFlyMode && d.mode==='explore'){
+      // ── FLY MODE: LOCAL EXPLORE DAY ──
+      const isReturn = !!(d.returnFlight && d.isLast);
+      headerMeta = isReturn ? '🚗 '+d.estMiles+' mi local · ✈️ return flight' : '🚗 '+d.estMiles+' mi · ~'+d.estHrs+'h local';
+      modeChip=`<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--teal-l);border-radius:var(--r-md);margin-bottom:14px;font-size:12px;color:var(--teal)">
+        🚗 ${lang==='ko'?'렌트카 로컬 탐방':'Local exploration — rental car'} · ~${d.estMiles} mi · ~${d.estHrs}h</div>`;
+      timelineStart=`
+        <div class="tl-stop"><div class="tl-dot d-start"></div>
+          <div class="stop-name">${d.to} ${lang==='ko'?'— 렌트카 베이스':'— rental base'}</div>
+          <div class="stop-meta"><span>🕗 ${lang==='ko'?'렌트카로 출발':'Depart by rental car'}</span></div>
+        </div>`;
+      if(isReturn){
+        timelineEnd=`
+          <div class="tl-stop"><div class="tl-dot" style="color:var(--amber);background:var(--amber)"></div>
+            <div class="stop-name">🚗 ${lang==='ko'?'렌트카 반납':'Return rental car'} — ${d.rentalBrand}</div>
+            <div class="stop-meta"><span>${lang==='ko'?'공항 반납 (3시간 전 권장)':'Return to airport (3 hrs before flight)'}</span></div>
+          </div>
+          <div class="tl-stop"><div class="tl-dot" style="color:var(--sky);background:var(--sky)"></div>
+            <div class="stop-name">✈️ ${d.depAirport}</div>
+            <div class="stop-meta"><span>${lang==='ko'?'귀국편 탑승':'Return flight'}</span><span style="color:var(--sky)">~${(d.returnFlightHrs||0).toFixed(1)}h</span></div>
+          </div>
+          <div class="tl-stop"><div class="tl-dot d-end"></div>
+            <div class="stop-name">🛬 ${d.arrAirport} 🏁</div>
+            <div class="stop-meta"><span>${lang==='ko'?'귀국':'Arrive home'}</span></div>
+          </div>`;
+        extraActions=`<button class="btn btn-sm" onclick="window.open('https://www.google.com/travel/flights?q=${encodeURIComponent(d.to+' to '+routeData.origin)}','_blank')">✈️ ${lang==='ko'?'귀국편 검색':'Search Return Flight'}</button>`;
+      } else {
+        timelineEnd=`
+          <div class="tl-stop"><div class="tl-dot ${d.isLast?'d-end':'d-stay'}"></div>
+            <div class="stop-name">${d.to}</div>
+            <div class="stop-meta"><span>${lang==='ko'?'베이스 복귀':'Return to base'}</span></div>
+            ${d.overnight?`<div class="stay-card"><div style="font-size:20px">🏨</div>
+              <div class="stay-info"><div class="stay-name">${d.overnight.name}</div><div class="stay-detail">★ ${d.overnight.stars} · Check-in 3:00 PM</div></div>
+              <div class="stay-price">${d.overnight.price}</div></div>`:''}
+          </div>`;
+      }
+
+    } else {
+      // ── DRIVE DAY (car-hotel or car-camp) ──
+      const driveBg  = d.longDay ? 'var(--amber-l)' : 'var(--sky-l)';
+      const driveClr = d.longDay ? 'var(--amber)' : 'var(--sky-d)';
+      const longWarn = d.longDay ? ` ⚠️ <span style="color:var(--amber);font-weight:600">${lang==='ko'?'장거리 구간 — 중간 휴식 필수':'Long drive — plan rest stops'}</span>` : '';
+      const emojiV   = routeData.isCamping ? '🏕️' : '🚗';
+      headerMeta = d.estMiles>0 ? d.estMiles+' mi · ~'+d.estHrs+'h drive' : (lang==='ko'?'체류 · 탐방일':'Explore day');
+      modeChip = d.estMiles>0
+        ? `<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:${driveBg};border-radius:var(--r-md);margin-bottom:14px;font-size:12px;color:${driveClr}">
+            ${emojiV} <strong>${d.estMiles} mi</strong>&nbsp;·&nbsp;~${d.estHrs} hrs&nbsp;·&nbsp;<span style="color:var(--txt3)">${d.hwy||'Interstate'}</span>${longWarn}</div>`
+        : `<div style="padding:8px 12px;background:var(--teal-l);border-radius:var(--r-md);margin-bottom:14px;font-size:12px;color:var(--teal)">📍 ${lang==='ko'?'목적지 탐방일':'Rest & Explore Day'}</div>`;
+      timelineStart=`
+        <div class="tl-stop"><div class="tl-dot d-start"></div>
+          <div class="stop-name">${d.from}</div>
+          <div class="stop-meta"><span>🕗 ${lang==='ko'?'출발 (오전 8~9시 권장)':'Depart (8–9 AM recommended)'}</span></div>
+        </div>
+        ${restHtml}${ptHtml}`;
+      timelineEnd = d.from!==d.to ? `
+        <div class="tl-stop"><div class="tl-dot ${d.isLast?'d-end':'d-stay'}"></div>
+          <div class="stop-name">${d.to} ${d.isLast?'🏁':''}</div>
+          <div class="stop-meta"><span>${d.isLast?(lang==='ko'?'최종 목적지':'Final Destination'):(lang==='ko'?'오늘의 숙박지':'Tonight\'s stay')}</span></div>
+          ${d.overnight?`<div class="stay-card"><div style="font-size:20px">${d.overnight.type==='camp'?'⛺':'🏨'}</div>
+            <div class="stay-info"><div class="stay-name">${d.overnight.name}</div><div class="stay-detail">★ ${d.overnight.stars} · Check-in 3:00 PM</div></div>
+            <div class="stay-price">${d.overnight.price}</div></div>`:''}
+        </div>` : '';
+    }
 
     card.innerHTML=`
       <div class="day-hdr" onclick="toggleDay(this)">
         <span class="day-num">${t('day_label')} ${d.day}</span>
-        <span class="day-title-t">${d.from===d.to?'📍 '+d.to:d.from+' → '+d.to} <span style="font-size:12px;color:var(--txt3)">(${dateStr})</span></span>
-        <span class="day-meta">${d.estMiles>0?d.estMiles+' mi · ~'+d.estHrs+'h':lang==='ko'?'체류일':'Explore day'}</span>
+        <span class="day-title-t">${isFlyMode&&d.mode==='fly'?'✈️ ':''}${d.from===d.to?'📍 '+d.to:d.from+' → '+d.to}<span style="font-size:12px;color:var(--txt3)"> (${dateStr})</span></span>
+        <span class="day-meta">${headerMeta}</span>
         <span class="day-chev ${isOpen?'open':''}">▾</span>
       </div>
       <div class="day-body" ${isOpen?'':'style="display:none"'}>
-        ${driveChip}
-        <div class="timeline">
-          <div class="tl-stop">
-            <div class="tl-dot d-start"></div>
-            <div class="stop-name">${d.from}</div>
-            <div class="stop-meta"><span>🕗 ${lang==='ko'?'출발 (오전 8~9시 권장)':'Depart (8–9 AM recommended)'}</span></div>
-          </div>
-          ${restHtml}
-          ${ptHtml}
-          ${sightsHtml}
-          ${d.from!==d.to?`<div class="tl-stop">
-            <div class="tl-dot ${d.isLast?'d-end':'d-stay'}"></div>
-            <div class="stop-name">${d.to} ${d.isLast?'🏁':''}</div>
-            <div class="stop-meta"><span>${d.isLast?(lang==='ko'?'최종 목적지':'Final Destination'):(lang==='ko'?'오늘의 숙박지':'Tonight\'s stay')}</span></div>
-            ${d.overnight?`<div class="stay-card">
-              <div style="font-size:20px">${d.overnight.type==='camp'?'⛺':'🏨'}</div>
-              <div class="stay-info">
-                <div class="stay-name">${d.overnight.name}</div>
-                <div class="stay-detail">★ ${d.overnight.stars} · Check-in 3:00 PM</div>
-              </div>
-              <div class="stay-price">${d.overnight.price}</div>
-            </div>`:''}
-          </div>`:''}
-        </div>
+        ${modeChip}
+        <div class="timeline">${timelineStart}${sightsHtml}${timelineEnd}</div>
         <div class="day-actions">
           <button class="btn btn-sm" onclick="openEditModal('${t('day_label')} ${d.day}')">${lang==='ko'?'✏️ 수정':'✏️ Edit'}</button>
           <button class="btn btn-sm" onclick="openAddItem('${t('day_label')} ${d.day}')">${lang==='ko'?'+ 항목 추가':'+ Add Item'}</button>
-          <button class="btn btn-sm" onclick="openGMapsDay('${encodeURIComponent(d.from)}','${encodeURIComponent(d.to)}')">${lang==='ko'?'🗺 구글맵':'🗺 Directions'}</button>
+          ${!isFlyMode?`<button class="btn btn-sm" onclick="openGMapsDay('${encodeURIComponent(d.from)}','${encodeURIComponent(d.to)}')">${lang==='ko'?'🗺 구글맵':'🗺 Directions'}</button>`:''}
+          ${extraActions}
         </div>
       </div>`;
     container.appendChild(card);
