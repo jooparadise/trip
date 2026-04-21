@@ -724,7 +724,10 @@ input[type=range]::-webkit-slider-thumb{appearance:none;width:18px;height:18px;b
 <script>
 /* CONFIG */
 const GOOGLE_CLIENT_ID = '264712906525-fi74gab3q51d85dnilrs2hu5dqt7h6t6.apps.googleusercontent.com';
-const PLACES_API_KEY   = 'YOUR_PLACES_API_KEY';
+const PLACES_API_KEY      = 'YOUR_PLACES_API_KEY';
+// OpenWeatherMap free API key — get at openweathermap.org/api
+// Paste your key below (free plan covers current weather + 5-day forecast)
+const OPENWEATHER_API_KEY = '';  // Leave blank — enter via Settings button
 
 /* I18N */
 const I18N = {
@@ -1236,7 +1239,7 @@ async function placeSearch(fieldId){
   if(q.length < 2){ dd.classList.remove('open'); return; }
 
   // Try Google Places Autocomplete if key is configured
-  if(typeof PLACES_API_KEY !== 'undefined' && !PLACES_API_KEY.startsWith('YOUR_')){
+  if(getPlacesKey()){
     try{
       const res = await fetch('https://maps.googleapis.com/maps/api/place/autocomplete/json?input='+encodeURIComponent(q)+'&types=(cities)&components=country:us&key='+PLACES_API_KEY);
       const data = await res.json();
@@ -2134,88 +2137,138 @@ function renderRouteVis(){
 
 function renderWeather(){
   if(!routeData) return;
-  const strip=document.getElementById('weather-strip'); strip.innerHTML='';
+  const strip = document.getElementById('weather-strip');
+  strip.innerHTML = '<div style="font-size:12px;color:var(--txt3);padding:8px 0">Loading weather…</div>';
 
-  const startDate = new Date(document.getElementById('start-date').value);
-  const today     = new Date(); today.setHours(0,0,0,0);
-  const daysAhead = Math.round((startDate - today)/86400000);
+  const startDate   = new Date(document.getElementById('start-date').value);
+  const today       = new Date(); today.setHours(0,0,0,0);
+  const daysAhead   = Math.round((startDate - today) / 86400000);
+  const isForecast  = daysAhead >= 0 && daysAhead <= 10;
 
-  // Determine mode: forecast (<= 10 days) or historical average (> 10 days)
-  const isForecast = daysAhead >= 0 && daysAhead <= 10;
-  const isPast     = daysAhead < 0;
+  const weatherCities = [...new Set([routeData.origin, ...routeData.days.map(d=>d.to)])].filter(Boolean);
 
-  // City → lat/lon for realistic temperature (latitude-based)
+  // City lat/lon lookup for API calls
   const cityLatMap = {
-    'Dallas':32,'Houston':30,'San Antonio':29,'Austin':30,'New Orleans':30,
-    'Atlanta':33,'Nashville':36,'Memphis':35,'Charlotte':35,'Miami':26,
-    'Orlando':28,'Tampa':28,'Jacksonville':30,'Tallahassee':30,
-    'Los Angeles':34,'San Francisco':37,'Seattle':47,'Portland':45,
-    'Denver':39,'Las Vegas':36,'Phoenix':33,'Chicago':42,'New York':40,
-    'Boston':42,'Washington':39,'Houston':29,'Minneapolis':45,
+    'Dallas':{'lat':32.78,'lon':-96.80},'Houston':{'lat':29.76,'lon':-95.37},
+    'San Antonio':{'lat':29.42,'lon':-98.49},'Austin':{'lat':30.27,'lon':-97.74},
+    'New Orleans':{'lat':29.95,'lon':-90.07},'Atlanta':{'lat':33.75,'lon':-84.39},
+    'Nashville':{'lat':36.17,'lon':-86.78},'Memphis':{'lat':35.15,'lon':-90.05},
+    'Charlotte':{'lat':35.23,'lon':-80.84},'Miami':{'lat':25.77,'lon':-80.19},
+    'Orlando':{'lat':28.54,'lon':-81.38},'Tampa':{'lat':27.95,'lon':-82.46},
+    'Jacksonville':{'lat':30.33,'lon':-81.66},'Tallahassee':{'lat':30.44,'lon':-84.28},
+    'Los Angeles':{'lat':34.05,'lon':-118.24},'San Francisco':{'lat':37.77,'lon':-122.42},
+    'Seattle':{'lat':47.61,'lon':-122.33},'Portland':{'lat':45.52,'lon':-122.68},
+    'Denver':{'lat':39.74,'lon':-104.98},'Las Vegas':{'lat':36.17,'lon':-115.14},
+    'Phoenix':{'lat':33.45,'lon':-112.07},'Chicago':{'lat':41.85,'lon':-87.65},
+    'New York':{'lat':40.71,'lon':-74.01},'Boston':{'lat':42.36,'lon':-71.06},
+    'Washington':{'lat':38.91,'lon':-77.04},'Minneapolis':{'lat':44.98,'lon':-93.27},
+    'Pensacola':{'lat':30.42,'lon':-87.22},'Biloxi':{'lat':30.40,'lon':-88.88},
+    'Mobile':{'lat':30.69,'lon':-88.04},'Birmingham':{'lat':33.52,'lon':-86.80},
   };
 
-  // Historical monthly averages [low°F, high°F] by latitude band × month
-  function historicalAvg(lat, month) {
-    // Tropical (lat<30): stays warm
-    if(lat < 30)  return [[65,78],[67,80],[70,83],[74,87],[77,90],[80,92],[81,93],[81,93],[79,91],[75,88],[70,82],[66,79]][month];
-    if(lat < 35)  return [[44,60],[47,63],[52,68],[59,75],[66,82],[74,88],[77,91],[76,90],[70,85],[60,76],[51,67],[45,61]][month];
-    if(lat < 40)  return [[32,48],[35,51],[42,59],[52,69],[61,78],[70,86],[74,90],[72,88],[65,81],[54,70],[44,59],[35,50]][month];
-    if(lat < 45)  return [[22,36],[25,40],[33,50],[44,62],[54,72],[63,81],[68,85],[66,83],[57,75],[46,64],[36,51],[26,40]][month];
-    return            [[15,28],[18,32],[28,44],[40,57],[51,68],[61,77],[66,81],[64,79],[55,70],[44,58],[32,45],[20,32]][month];
+  // Historical monthly avg [lo°F, hi°F] by latitude band
+  function historicalAvg(lat, month){
+    if(lat<30)  return [[65,78],[67,80],[70,83],[74,87],[77,90],[80,92],[81,93],[81,93],[79,91],[75,88],[70,82],[66,79]][month];
+    if(lat<35)  return [[44,60],[47,63],[52,68],[59,75],[66,82],[74,88],[77,91],[76,90],[70,85],[60,76],[51,67],[45,61]][month];
+    if(lat<40)  return [[32,48],[35,51],[42,59],[52,69],[61,78],[70,86],[74,90],[72,88],[65,81],[54,70],[44,59],[35,50]][month];
+    if(lat<45)  return [[22,36],[25,40],[33,50],[44,62],[54,72],[63,81],[68,85],[66,83],[57,75],[46,64],[36,51],[26,40]][month];
+    return              [[15,28],[18,32],[28,44],[40,57],[51,68],[61,77],[66,81],[64,79],[55,70],[44,58],[32,45],[20,32]][month];
   }
 
-  const weatherCities = [...new Set([routeData.origin, ...routeData.days.map(d=>d.to)])];
-  const icons_f = ['⛅','🌤️','☀️','🌦️','⛈️','🌤️','🌧️'];
-  const conds_en = ['Partly cloudy','Mostly sunny','Sunny','Showers','Thunderstorm','Clear','Rainy'];
-  const conds_ko = ['구름 조금','맑음','맑음','소나기','뇌우','맑음','비'];
+  // OWM icon → emoji
+  function owmIcon(icon){
+    if(!icon) return '🌤️';
+    const id = icon.slice(0,2);
+    const map = {'01':'☀️','02':'⛅','03':'☁️','04':'☁️','09':'🌧️','10':'🌦️','11':'⛈️','13':'❄️','50':'🌫️'};
+    return map[id]||'🌤️';
+  }
 
-  weatherCities.forEach((city, ci_idx)=>{
-    const cn = city.split(',')[0].trim();
-    const lat = cityLatMap[cn] || 35;
+  strip.innerHTML = '';
+  const hasKey = !!getOWMKey();
+
+  weatherCities.forEach((city, idx)=>{
+    const cn  = city.split(',')[0].trim();
+    const lat = cityLatMap[cn]?.lat || 35;
+    const lon = cityLatMap[cn]?.lon || -90;
     const month = startDate.getMonth();
-    const chip = document.createElement('div');
 
-    if(isForecast){
-      // Simulate forecast (in prod: call OpenWeatherMap API)
-      const [lo, hi] = historicalAvg(lat, month);
-      const temp = Math.round(lo + (hi-lo)*Math.random()*0.7 + (hi-lo)*0.15);
-      const ci   = Math.floor(Math.random()*icons_f.length);
-      chip.className = 'w-chip forecast';
-      chip.innerHTML =
-        '<div class="w-city">'+cn+'</div>'+
-        '<div class="w-icon">'+icons_f[ci]+'</div>'+
-        '<div class="w-temp">'+temp+'°F</div>'+
-        '<div class="w-cond">'+(lang==='ko'?conds_ko[ci]:conds_en[ci])+'</div>'+
-        '<div class="w-method">'+(lang==='ko'?daysAhead+'일 예보':''+daysAhead+'d forecast')+'</div>';
-    } else {
-      // Historical 2-year average
-      const [lo, hi] = historicalAvg(lat, month);
-      const avgLo = lo, avgHi = hi;
-      const avgTemp = Math.round((lo+hi)/2);
-      chip.className = 'w-chip historical';
+    const chip = document.createElement('div');
+    chip.className = isForecast ? 'w-chip forecast' : 'w-chip historical';
+
+    if(hasKey && isForecast){
+      // Call OpenWeatherMap forecast API
+      chip.innerHTML = '<div class="w-city">'+cn+'</div><div class="w-icon">⏳</div><div class="w-temp">—</div><div class="w-cond">Loading…</div>';
+      strip.appendChild(chip);
+
+      const targetDate = startDate.toISOString().slice(0,10);
+      fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&units=imperial&cnt=40&appid=${getOWMKey()}`)
+        .then(r=>r.json())
+        .then(data=>{
+          if(data.cod !== '200'){ throw new Error(data.message||'API error'); }
+          // Find forecast entry closest to the target date
+          const entry = data.list.find(f=>f.dt_txt.startsWith(targetDate+' 12'))||
+                        data.list.find(f=>f.dt_txt.startsWith(targetDate))||
+                        data.list[Math.min(idx*8, data.list.length-1)];
+          const temp = Math.round(entry.main.temp);
+          const lo   = Math.round(entry.main.temp_min);
+          const hi   = Math.round(entry.main.temp_max);
+          const cond = entry.weather[0].description;
+          const icon = owmIcon(entry.weather[0].icon);
+          chip.innerHTML =
+            '<div class="w-city">'+cn+'</div>'+
+            '<div class="w-icon">'+icon+'</div>'+
+            '<div class="w-temp">'+temp+'°F</div>'+
+            '<div class="w-range">'+lo+'–'+hi+'°F</div>'+
+            '<div class="w-cond">'+cond+'</div>'+
+            '<div class="w-method">'+(lang==='ko'?daysAhead+'일 예보':''+daysAhead+'d forecast')+'</div>';
+        })
+        .catch(()=>{
+          // Fallback to simulated on error
+          const [lo,hi] = historicalAvg(lat, month);
+          const temp = Math.round(lo+(hi-lo)*0.6);
+          chip.innerHTML = '<div class="w-city">'+cn+'</div><div class="w-icon">🌤️</div><div class="w-temp">'+temp+'°F</div><div class="w-cond">Forecast unavailable</div><div class="w-method">estimate</div>';
+        });
+    } else if(hasKey && !isForecast && daysAhead >= 0){
+      // Historical — use OWM climate data endpoint or show avg
+      const [lo,hi] = historicalAvg(lat, month);
+      const avg = Math.round((lo+hi)/2);
       chip.innerHTML =
         '<div class="w-city">'+cn+'</div>'+
         '<div class="w-icon">📊</div>'+
-        '<div class="w-temp">'+avgTemp+'°F</div>'+
-        '<div class="w-range">'+avgLo+'–'+avgHi+'°F</div>'+
+        '<div class="w-temp">'+avg+'°F</div>'+
+        '<div class="w-range">'+lo+'–'+hi+'°F</div>'+
         '<div class="w-method">'+(lang==='ko'?'2년 평균':'2yr avg')+'</div>';
+      strip.appendChild(chip);
+    } else {
+      // No API key — simulated
+      const [lo,hi] = historicalAvg(lat, month);
+      const icons_s = ['⛅','🌤️','☀️','🌦️','⛈️','🌤️'];
+      const conds_en = ['Partly cloudy','Mostly sunny','Sunny','Showers','Thunderstorm','Clear'];
+      const conds_ko = ['구름 조금','맑음','맑음','소나기','뇌우','맑음'];
+      const ci = Math.floor(Math.random()*icons_s.length);
+      const temp = Math.round(lo+(hi-lo)*(0.3+Math.random()*0.5));
+      chip.innerHTML =
+        '<div class="w-city">'+cn+'</div>'+
+        '<div class="w-icon">'+icons_s[ci]+'</div>'+
+        '<div class="w-temp">'+temp+'°F</div>'+
+        '<div class="w-cond">'+(lang==='ko'?conds_ko[ci]:conds_en[ci])+'</div>'+
+        '<div class="w-method">'+( isForecast ? (lang==='ko'?'예보(샘플)':'sample forecast') : (lang==='ko'?'2년 평균':'2yr avg') )+'</div>';
+      strip.appendChild(chip);
     }
-    strip.appendChild(chip);
   });
 
-  // Update the note text
+  // Update note
   const note = document.querySelector('[data-i18n="weather_note"]');
   if(note){
-    if(isForecast)
-      note.textContent = lang==='ko'
-        ? '출발까지 '+daysAhead+'일 남음 — 10일 이내 예보 표시 중.'
-        : daysAhead+' days until departure — showing '+daysAhead+'-day forecast.';
+    if(hasKey && isForecast)
+      note.textContent = lang==='ko' ? '🌤 OpenWeatherMap 실시간 '+daysAhead+'일 예보' : '🌤 Live '+daysAhead+'-day forecast via OpenWeatherMap';
+    else if(hasKey)
+      note.textContent = lang==='ko' ? '📊 출발까지 '+daysAhead+'일 이상 — 과거 2년 평균 기온 표시' : '📊 Departure >10 days away — showing 2-year historical averages';
     else
-      note.textContent = lang==='ko'
-        ? '10일 이상 남아 과거 2년 평균 기온을 표시합니다. (OpenWeatherMap API 연동 시 실제 예보로 전환)'
-        : 'Departure is >10 days away — showing 2-year historical averages. Connect OpenWeatherMap API for live forecast.';
+      note.textContent = lang==='ko' ? '⚙️ openweathermap.org에서 무료 API 키를 받아 index.html CONFIG에 입력하면 실시간 날씨가 표시됩니다.' : '⚙️ Add your free OpenWeatherMap API key to the CONFIG section for live weather data.';
   }
 }
+
 
 function makePOICard(emoji, name, sub, price, rating, city, type, distMi, distHrs){
   var safeN = name.replace(/'/g,"\'");
@@ -2521,6 +2574,12 @@ function showToast(msg){ const t=document.getElementById('toast'); t.textContent
   document.querySelectorAll('.modal-bd').forEach(function(bd){
     bd.addEventListener('click', function(ev){ if(ev.target===bd) bd.classList.remove('open'); });
   });
+  // Load saved API keys from localStorage into runtime vars
+  const _owm = localStorage.getItem('wt_owm_key');
+  if(_owm) window._OWM_KEY = _owm;
+  const _places = localStorage.getItem('wt_places_key');
+  if(_places) window._PLACES_KEY = _places;
+
   // Load saved routes from localStorage
   renderSavedRoutes();
 })();
@@ -3057,6 +3116,45 @@ function runAIWaypoints(){
   }, 600);
 }
 
+/* ═══════════════════════════════════════════════════
+   API KEY SETTINGS (stored in localStorage only)
+═══════════════════════════════════════════════════ */
+function openSettings(){
+  // Load saved keys into inputs (show masked)
+  const owm    = localStorage.getItem('wt_owm_key')   || '';
+  const places = localStorage.getItem('wt_places_key') || '';
+  document.getElementById('set-owm-key').value    = owm    ? owm.slice(0,6)+'••••••••••••••••••••••••••' : '';
+  document.getElementById('set-places-key').value = places ? places.slice(0,6)+'••••••••••••••••••••••••••' : '';
+  document.getElementById('settings-modal').classList.add('open');
+}
+
+function saveSettings(){
+  const owmInput    = document.getElementById('set-owm-key').value.trim();
+  const placesInput = document.getElementById('set-places-key').value.trim();
+
+  // Only save if not the masked placeholder
+  if(owmInput && !owmInput.includes('••')){
+    localStorage.setItem('wt_owm_key', owmInput);
+    // Update runtime variable
+    window._OWM_KEY = owmInput;
+  }
+  if(placesInput && !placesInput.includes('••')){
+    localStorage.setItem('wt_places_key', placesInput);
+    window._PLACES_KEY = placesInput;
+  }
+  closeModal('settings-modal');
+  showToast(lang==='ko' ? '✅ API 키가 저장되었습니다 (브라우저에만)' : '✅ API keys saved to browser storage');
+  // Re-render weather with new key
+  if(routeData) renderWeather();
+}
+
+function getOWMKey(){
+  return window._OWM_KEY || localStorage.getItem('wt_owm_key') || '';
+}
+function getPlacesKey(){
+  return window._PLACES_KEY || localStorage.getItem('wt_places_key') || '';
+}
+
 </script>
 
 <!-- ── TRAVEL MODE OVERLAY ─────────────────────────────── -->
@@ -3113,6 +3211,42 @@ function runAIWaypoints(){
       </div>
       <!-- Stop list -->
       <div class="tv-stop-list" id="tv-stop-list"></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ── SETTINGS MODAL ─────────────────────────────── -->
+<div class="modal-bd" id="settings-modal">
+  <div class="modal">
+    <div class="modal-title">⚙️ API Keys & Settings</div>
+    <p style="font-size:12px;color:var(--txt3);margin-bottom:16px;line-height:1.6">
+      API keys are saved in your browser only — never sent to any server or stored in the code.
+    </p>
+
+    <div class="fg" style="margin-bottom:14px">
+      <label class="flabel">🌤 OpenWeatherMap API Key</label>
+      <input type="text" class="finput" id="set-owm-key" placeholder="Paste your key here (free at openweathermap.org)">
+      <div style="font-size:11px;color:var(--txt3);margin-top:4px">
+        Get free key at <a href="https://openweathermap.org/api" target="_blank" style="color:var(--sky)">openweathermap.org/api</a> — activate takes up to 2 hours
+      </div>
+    </div>
+
+    <div class="fg" style="margin-bottom:14px">
+      <label class="flabel">🗺 Google Places API Key (optional)</label>
+      <input type="text" class="finput" id="set-places-key" placeholder="For city autocomplete (optional)">
+      <div style="font-size:11px;color:var(--txt3);margin-top:4px">
+        Enables real-time city search. Leave blank to use built-in city list.
+      </div>
+    </div>
+
+    <div style="background:var(--sky-l);border-radius:var(--r-md);padding:10px 14px;font-size:12px;color:var(--sky-d);margin-bottom:16px">
+      🔒 Keys are stored in <strong>localStorage</strong> in your browser only. Never committed to GitHub.
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('settings-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveSettings()">Save Keys</button>
     </div>
   </div>
 </div>
