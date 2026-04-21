@@ -232,6 +232,34 @@ input[type=range]::-webkit-slider-thumb{appearance:none;width:18px;height:18px;b
 .poi-price{font-size:14px;font-weight:700;color:var(--coral)}
 .poi-actions{display:flex;align-items:center;gap:8px;margin-top:6px}
 .poi-rating{font-size:11px;color:var(--amber);font-weight:600}
+.poi-card{position:relative;cursor:default}
+.poi-card:hover .gmap-tooltip{opacity:1;pointer-events:all;transform:translateY(0)}
+.gmap-tooltip{position:absolute;left:0;right:0;bottom:calc(100% + 6px);background:var(--sfc);border:1px solid var(--bdr2);border-radius:var(--r-lg);padding:12px 14px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:500;opacity:0;pointer-events:none;transform:translateY(6px);transition:all .18s ease}
+.gmap-tooltip::after{content:'';position:absolute;bottom:-6px;left:20px;width:10px;height:10px;background:var(--sfc);border-right:1px solid var(--bdr2);border-bottom:1px solid var(--bdr2);transform:rotate(45deg)}
+.gtt-name{font-size:13px;font-weight:600;color:var(--txt);margin-bottom:3px}
+.gtt-addr{font-size:11px;color:var(--txt3);margin-bottom:8px}
+.gtt-row{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.gtt-stars{color:var(--amber);font-size:12px;font-weight:700}
+.gtt-reviews{font-size:11px;color:var(--txt3)}
+.gtt-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px}
+.gtt-open{background:var(--green-l);color:var(--green)}
+.gtt-closed{background:var(--coral-l);color:var(--coral)}
+.gtt-link{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--sky);font-weight:600;text-decoration:none;margin-top:4px}
+.gtt-link:hover{text-decoration:underline}
+.gtt-hours{font-size:11px;color:var(--txt3);margin-top:4px}
+.poi-btn-row{display:flex;align-items:center;gap:6px;margin-top:8px}
+.btn-poi-add{padding:5px 12px;font-size:11px;font-weight:600;border:1px solid var(--teal);color:var(--teal);background:transparent;border-radius:var(--r-sm);cursor:pointer;font-family:var(--font-body);transition:all .15s}
+.btn-poi-add:hover{background:var(--teal);color:white}
+.btn-poi-add.added{background:var(--teal);color:white;border-color:var(--teal)}
+.btn-poi-rem{padding:5px 12px;font-size:11px;font-weight:600;border:1px solid var(--coral);color:var(--coral);background:transparent;border-radius:var(--r-sm);cursor:pointer;font-family:var(--font-body);transition:all .15s;display:none}
+.btn-poi-rem:hover{background:var(--coral);color:white}
+.dist-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--txt2);background:var(--sfc2);border:1px solid var(--bdr);border-radius:var(--r-sm);padding:3px 9px;margin-top:4px}
+.dist-badge svg{width:11px;height:11px;flex-shrink:0}
+.tl-stop{position:relative}
+.tl-card{position:relative}
+.tl-card:hover .gmap-tooltip{opacity:1;pointer-events:all;transform:translateY(0)}
+.tl-spot-actions{display:flex;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap}
+.tl-dist{font-size:11px;color:var(--txt3);background:var(--sfc2);border:1px solid var(--bdr);border-radius:var(--r-sm);padding:2px 8px;display:inline-flex;align-items:center;gap:4px}
 
 /* ── EVENTS ── */
 .evt-card{border:1px solid var(--bdr);border-radius:var(--r-md);padding:14px;margin-bottom:10px;display:flex;align-items:flex-start;gap:12px;background:var(--sfc);transition:box-shadow .15s}
@@ -1754,20 +1782,43 @@ function renderRouteUI(){
     const isOpen=i===0;
     const isFlyMode = routeData.mode==='fly-rent';
 
-    const ptHtml = (d.passThrough||[]).map(pt=>`
+    // Estimated miles between origin and first stop, divided across pass-through cities
+    const segMiEach = d.estMiles>0 ? Math.round(d.estMiles/(1+(d.passThrough||[]).length)) : 0;
+    const segHrsEach = segMiEach>0 ? +(segMiEach/65).toFixed(1) : 0;
+    const ptHtml = (d.passThrough||[]).map((pt,pi)=>`
       <div class="tl-stop"><div class="tl-dot d-mid"></div>
         <div class="stop-name">${pt}</div>
-        <div class="stop-meta"><span>🛣 ${lang==='ko'?'경유':'Pass through'}</span><span style="color:var(--sky);font-size:11px">${d.hwy}</span></div>
+        <div class="stop-meta">
+          <span>🛣 ${lang==='ko'?'경유':'Pass through'}</span>
+          <span style="color:var(--sky);font-size:11px">${d.hwy}</span>
+          ${segMiEach?`<span class="tl-dist">~${segMiEach} mi · ~${segHrsEach}h</span>`:''}
+        </div>
       </div>`).join('');
-    const sightsHtml = (d.sights||[]).map(s=>`
-      <div class="tl-stop"><div class="tl-dot d-mid"></div>
+    const sightsHtml = (d.sights||[]).map((s,si)=>{
+      const sightId='sight-'+Math.random().toString(36).slice(2);
+      const safeS=s.replace(/'/g,"\\'");
+      const ttip=buildGmapTooltip(s,d.to,'sight',+(Math.random()*0.8+4.1).toFixed(1),'','');
+      const distMi=Math.floor(Math.random()*5+2);
+      return `<div class="tl-stop tl-card">
+        <div class="tl-dot d-mid"></div>
+        ${ttip}
         <div class="stop-name">${s}</div>
         <div class="stop-meta"><span>📍 ${lang==='ko'?'AI 추천 명소':'AI Recommended'}</span></div>
-      </div>`).join('');
+        <div class="tl-spot-actions">
+          <span class="tl-dist">🚗 ~${distMi} mi off route</span>
+          <button class="btn-poi-add" id="${sightId}" onclick="addPOIToRoute(this,'${safeS}')">+ ${lang==='ko'?'경로 추가':'Add'}</button>
+          <button class="btn-poi-rem" onclick="removePOIFromRoute(this,document.getElementById('${sightId}'),'${safeS}')">− ${lang==='ko'?'제거':'Remove'}</button>
+        </div>
+      </div>`;
+    }).join('');
+    const restMi = d.estMiles>0 ? Math.round(d.estMiles*0.45) : 0;
     const restHtml = d.restStop?`
       <div class="tl-stop"><div class="tl-dot" style="color:#6366F1;background:#6366F1"></div>
         <div class="stop-name">🛑 ${d.restStop}</div>
-        <div class="stop-meta"><span>${lang==='ko'?'휴게소 / 주유 추천':'Rest Area / Fuel Stop'}</span></div>
+        <div class="stop-meta">
+          <span>${lang==='ko'?'휴게소 / 주유 추천':'Rest Area / Fuel Stop'}</span>
+          ${restMi?`<span class="tl-dist">~${restMi} mi from start</span>`:''}
+        </div>
       </div>`:'';
 
     let modeChip='', headerMeta='', timelineStart='', timelineEnd='', extraActions='';
@@ -1939,62 +1990,65 @@ function renderWeather(){
   });
 }
 
+function makePOICard(emoji, name, sub, price, rating, city, type, distMi, distHrs){
+  var safeN = name.replace(/'/g,"\'");
+  var ratingVal = rating || (Math.random()*0.8+4.1).toFixed(1);
+  var id = 'poi-'+Math.random().toString(36).slice(2);
+  var tooltip = buildGmapTooltip(name, city, type, parseFloat(ratingVal), price||'', '');
+  var distBadge = distMi ? `<span class="tl-dist">🚗 ~${distMi} mi · ~${distHrs}h</span>` : '';
+  var card = document.createElement('div');
+  card.className = 'poi-card';
+  card.innerHTML = `
+    ${tooltip}
+    <div class="poi-name">${emoji} ${name}</div>
+    <div class="poi-sub">${sub}</div>
+    ${price?`<div class="poi-price">${price}</div>`:''}
+    ${distBadge}
+    <div class="poi-btn-row">
+      <span class="poi-rating">★ ${ratingVal}</span>
+      <button class="btn-poi-add" id="${id}" onclick="addPOIToRoute(this,'${safeN}')">+ ${lang==='ko'?'경로 추가':'Add to Route'}</button>
+      <button class="btn-poi-rem" onclick="removePOIFromRoute(this,document.getElementById('${id}'),'${safeN}')">− ${lang==='ko'?'제거':'Remove'}</button>
+    </div>`;
+  return card;
+}
 function renderPOIs(){
   if(!routeData) return;
-  const isCamping=routeData.isCamping;
-  // Only show POIs for overnight/major stops (unique cities from day.to values)
-  const keyCities=[...new Set(routeData.days.map(d=>d.to))];
-
-  // Gas stations — use known data or fallback brands
-  const gasList=document.getElementById('gas-list'); gasList.innerHTML='';
-  const gasBrands=['Shell','Chevron','BP','ExxonMobil','Valero','Marathon','Sunoco','Circle K','Pilot Flying J','Buc-ee\'s','Love\'s Travel Stop'];
-  routeData.days.forEach(d=>{
-    const pois=CITY_POIS[d.to];
-    const gasName=pois?.gas?.[0] || `${gasBrands[Math.floor(Math.random()*gasBrands.length)]} — ${d.to.split(',')[0]}`;
-    const price=(Math.random()*0.35+3.35).toFixed(2);
-    const id='gas-'+Math.random().toString(36).slice(2);
-    const card=document.createElement('div'); card.className='poi-card';
-    card.innerHTML=`<div class="poi-name">⛽ ${gasName}</div><div class="poi-sub">${lang==='ko'?'경로 상 주유 추천':'Recommended fuel stop on route'} · ${d.hwy||'Interstate'}</div><div class="poi-price">~$${price}/gal</div><div class="poi-actions"><button class="btn-add-route" id="${id}" onclick="addPOIToRoute(this,'${gasName.replace(/'/g,"\\\'")}')">${t('add_to_route')}</button></div>`;
-    gasList.appendChild(card);
+  var isCamping=routeData.isCamping;
+  var gasList=document.getElementById('gas-list'); gasList.innerHTML='';
+  var gasBrands=["Shell","Chevron","BP","ExxonMobil","Valero","Marathon","Sunoco","Circle K","Pilot Flying J","Buc-ee's","Love's Travel Stop"];
+  routeData.days.forEach(function(d){
+    var pois=CITY_POIS[d.to];
+    var gasName=pois&&pois.gas&&pois.gas[0]?pois.gas[0]:(gasBrands[Math.floor(Math.random()*gasBrands.length)]+' — '+d.to.split(',')[0]);
+    var price='~$'+(Math.random()*0.35+3.35).toFixed(2)+'/gal';
+    var distMi=Math.floor(Math.random()*4+1);
+    gasList.appendChild(makePOICard('⛽',gasName,(lang==='ko'?'경로 상 주유 추천':'Fuel stop on route')+' · '+(d.hwy||'Interstate'),price,null,d.to,'gas',distMi,(distMi/55).toFixed(1)));
   });
-
-  // Food & cafés — use real known spots first
-  const foodList=document.getElementById('food-list'); foodList.innerHTML='';
-  const genericFood_en=[['Local Diner','Classic American roadside breakfast'],['Roadside BBQ Shack','Slow-smoked meats & sides'],['Farm-to-Table Café','Seasonal local ingredients'],['Craft Brewery Kitchen','Regional craft beer & pub food'],['Southern Soul Kitchen','Comfort food done right']];
-  const genericFood_ko=[['로컬 다이너','클래식 아메리칸 조식'],['로드사이드 BBQ','훈제 고기 요리'],['팜투테이블 카페','신선한 로컬 식재료'],['크래프트 브루어리','수제 맥주 & 펍 음식'],['소울 푸드 레스토랑','진한 남부 가정식']];
-  const genericFood=lang==='ko'?genericFood_ko:genericFood_en;
-
-  routeData.days.forEach((d,i)=>{
-    const pois=CITY_POIS[d.to];
-    const knownFoods=pois?.food||[];
-    const cityName=d.to.split(',')[0];
-    // Show known spots + 1 generic
-    [...knownFoods, genericFood[i%genericFood.length][0]].slice(0,3).forEach((name,fi)=>{
-      const sub = fi<knownFoods.length ? `${cityName} · ${lang==='ko'?'현지 유명 맛집':'Local favorite'}` : `${cityName} · ${genericFood[i%genericFood.length][1]}`;
-      const rating=(Math.random()*0.8+4.1).toFixed(1);
-      const id='food-'+Math.random().toString(36).slice(2);
-      const card=document.createElement('div'); card.className='poi-card';
-      card.innerHTML=`<div class="poi-name">🍽 ${name}</div><div class="poi-sub">${sub}</div><div class="poi-actions"><span class="poi-rating">★ ${rating}</span><button class="btn-add-route" id="${id}" onclick="addPOIToRoute(this,'${name.replace(/'/g,"\\\'")}')">${t('add_to_route')}</button></div>`;
-      foodList.appendChild(card);
+  var foodList=document.getElementById('food-list'); foodList.innerHTML='';
+  var genericFood_en=[["Local Diner","Classic American roadside breakfast"],["Roadside BBQ Shack","Slow-smoked meats & sides"],["Farm-to-Table Cafe","Seasonal local ingredients"],["Craft Brewery Kitchen","Regional craft beer & pub food"],["Southern Soul Kitchen","Comfort food done right"]];
+  var genericFood_ko=[["로컬 다이너","클래식 아메리칸 조식"],["로드사이드 BBQ","훈제 고기 요리"],["팜투테이블 카페","신선한 로컬 식재료"],["크래프트 브루어리","수제 맥주 & 펍 음식"],["소울 푸드 레스토랑","진한 남부 가정식"]];
+  var genericFood=lang==='ko'?genericFood_ko:genericFood_en;
+  routeData.days.forEach(function(d,i){
+    var pois=CITY_POIS[d.to];
+    var knownFoods=pois&&pois.food?pois.food:[];
+    var cityName=d.to.split(',')[0];
+    var foods=knownFoods.concat([genericFood[i%genericFood.length][0]]).slice(0,3);
+    foods.forEach(function(name,fi){
+      var sub=fi<knownFoods.length?(cityName+' · '+(lang==='ko'?'현지 유명 맛집':'Local favorite')):(cityName+' · '+genericFood[i%genericFood.length][1]);
+      var distMi=Math.floor(Math.random()*3+1);
+      foodList.appendChild(makePOICard('🍽',name,sub,null,(Math.random()*0.8+4.1).toFixed(1),d.to,'food',distMi,(distMi/35).toFixed(1)));
     });
   });
-
-  // Campgrounds
-  const campCard=document.getElementById('camp-card');
+  var campCard=document.getElementById('camp-card');
   if(isCamping){
     campCard.style.display='';
-    const campList=document.getElementById('camp-list'); campList.innerHTML='';
-    const campTypes_en=['KOA Journey Kampground','State Park Campground','National Forest Campsite','Jellystone Park','Good Sam RV Resort','COE Campground'];
-    const campTypes_ko=['KOA 캠프장','주립공원 캠프장','국유림 캠프사이트','젤리스톤 파크','굿샘 RV 리조트','COE 캠프장'];
-    const ct=lang==='ko'?campTypes_ko:campTypes_en;
-    routeData.days.filter(d=>!d.isLast).forEach((d,i)=>{
-      const name=ct[i%ct.length];
-      const cn=d.to.split(',')[0];
-      const price=Math.floor(Math.random()*20+28);
-      const id='camp-'+Math.random().toString(36).slice(2);
-      const card=document.createElement('div'); card.className='poi-card';
-      card.innerHTML=`<div class="poi-name">⛺ ${name}</div><div class="poi-sub">${cn} area · $${price}/night · Full hookups available</div><div class="poi-actions"><span class="poi-rating">★ ${(Math.random()*0.6+4.1).toFixed(1)}</span><button class="btn-add-route" id="${id}" onclick="addPOIToRoute(this,'${name} (${cn})')">${t('add_to_route')}</button></div>`;
-      campList.appendChild(card);
+    var campList=document.getElementById('camp-list'); campList.innerHTML='';
+    var campTypes_en=["KOA Journey Kampground","State Park Campground","National Forest Campsite","Jellystone Park","Good Sam RV Resort","COE Campground"];
+    var campTypes_ko=["KOA 캠프장","주립공원 캠프장","국유림 캠프사이트","젤리스톤 파크","굿샘 RV 리조트","COE 캠프장"];
+    var ct=lang==='ko'?campTypes_ko:campTypes_en;
+    routeData.days.filter(function(d){return !d.isLast;}).forEach(function(d,i){
+      var name=ct[i%ct.length];
+      var cn=d.to.split(',')[0];
+      campList.appendChild(makePOICard('⛺',name,cn+' area · Full hookups available','$'+Math.floor(Math.random()*20+28)+'/night',(Math.random()*0.6+4.1).toFixed(1),d.to,'camp',null,null));
     });
   } else { campCard.style.display='none'; }
 }
@@ -2003,8 +2057,51 @@ function addPOIToRoute(btn, name){
   btn.textContent=t('added_route');
   btn.classList.add('added');
   btn.disabled=true;
+  // Show remove button
+  const remBtn=btn.parentElement.querySelector('.btn-poi-rem');
+  if(remBtn){ remBtn.style.display=''; }
   showToast((lang==='ko'?name+' 을(를) 루트에 추가했습니다.':name+' added to route.'));
   autoSave();
+}
+function removePOIFromRoute(remBtn, addBtn, name){
+  addBtn.textContent=t('add_to_route');
+  addBtn.classList.remove('added');
+  addBtn.disabled=false;
+  remBtn.style.display='none';
+  showToast((lang==='ko'?name+' 이(가) 루트에서 제거되었습니다.':name+' removed from route.'));
+  autoSave();
+}
+
+function buildGmapTooltip(name, city, type, rating, price, hours){
+  const q=encodeURIComponent(name+' '+city);
+  const stars='★'.repeat(Math.round(rating||4.2))+'☆'.repeat(5-Math.round(rating||4.2));
+  const reviews=Math.floor(Math.random()*800+120);
+  const isOpen=Math.random()>0.3;
+  const openStr=lang==='ko'?(isOpen?'영업 중':'영업 종료'):(isOpen?'Open now':'Closed');
+  const addrSample=`${Math.floor(Math.random()*9000+100)} ${['Main','Oak','Maple','Pine','Elm'][Math.floor(Math.random()*5)]} St, ${city.split(',')[0]}`;
+  return `<div class="gmap-tooltip">
+    <div class="gtt-name">${name}</div>
+    <div class="gtt-addr">📍 ${addrSample}</div>
+    <div class="gtt-row">
+      <span class="gtt-stars">${(rating||4.2).toFixed(1)} ${stars.slice(0,5)}</span>
+      <span class="gtt-reviews">(${reviews.toLocaleString()} reviews)</span>
+      <span class="gtt-badge ${isOpen?'gtt-open':'gtt-closed'}">${openStr}</span>
+    </div>
+    ${price?`<div style="font-size:12px;font-weight:600;color:var(--coral);margin-bottom:4px">${price}</div>`:''}
+    ${hours?`<div class="gtt-hours">🕐 ${hours}</div>`:''}
+    <a class="gtt-link" href="https://www.google.com/maps/search/${q}" target="_blank">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      ${lang==='ko'?'Google Maps에서 보기':'View on Google Maps'}
+    </a>
+  </div>`;
+}
+
+function buildDistBadge(miles, hrs){
+  if(!miles) return '';
+  return `<span class="tl-dist">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    ~${miles} mi · ~${hrs}h drive
+  </span>`;
 }
 
 /* ═══════════════════════════════════════════════════
