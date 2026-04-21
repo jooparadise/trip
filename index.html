@@ -1635,6 +1635,7 @@ function buildUSRoute(origin, dest, wps, startDate, nights, maxMiPerDay, maxHrsP
   const totalMiles = allSegments.reduce((s,sg)=>s+sg.miles, 0);
 
   // ── Smart day splitter ────────────────────────────────
+  // nights=3, 3박4일 → daysCount=4 (travel days = nights+1)
   const daysCount = Math.max(1, nights+1);
   const days = [];
   let dayMiles=0, dayFrom=normOrigin, daySegments=[], dayStops=[];
@@ -1645,14 +1646,16 @@ function buildUSRoute(origin, dest, wps, startDate, nights, maxMiPerDay, maxHrsP
   for(const seg of allSegments){
     const wouldExceed = (dayMiles+seg.miles) > maxMiPerDay;
     const firstSeg    = dayMiles===0;
+    // Never create more days than daysCount — if we hit the last day, absorb all remaining
+    const onLastDay   = currentDay >= daysCount;
 
-    if(!wouldExceed || firstSeg){
-      // Fits in today (or it's an unavoidably long single segment)
+    if(!wouldExceed || firstSeg || onLastDay){
+      // Fits today, OR unavoidably long segment, OR we must finish today
       dayMiles += seg.miles;
       daySegments.push(seg);
       if(seg.pois && seg.pois.length) dayStops.push(seg.pois[0]);
     } else {
-      // Close today's drive
+      // Close today and start a new day (only if we still have days left)
       const dayTo = daySegments[daySegments.length-1].to;
       const isLast = currentDay >= daysCount;
       days.push({
@@ -1672,15 +1675,16 @@ function buildUSRoute(origin, dest, wps, startDate, nights, maxMiPerDay, maxHrsP
     }
   }
 
-  // Push final day
+  // Push the final day (always goes to normDest)
   if(daySegments.length>0){
+    const isLast=true;
     days.push({
       day:currentDay, date:dayDate(currentDay),
       from:dayFrom, to:normDest,
       estMiles:Math.round(dayMiles),
       estHrs:+(dayMiles/65).toFixed(1),
       hwy:daySegments[0]?.hwy||'',
-      isLast:true, longDay: dayMiles>maxMiPerDay,
+      isLast, longDay: dayMiles>maxMiPerDay,
       overnight:null,
       sights: getCitySights(normDest),
       restStop: dayMiles>120?getRestArea(dayFrom,normDest,daySegments):null,
@@ -1688,13 +1692,25 @@ function buildUSRoute(origin, dest, wps, startDate, nights, maxMiPerDay, maxHrsP
     });
   }
 
-  // Pad remaining nights with explore days at destination
+  // Enforce exact daysCount: trim if over, pad if under
+  // Trim: if route needed fewer road days than daysCount, last days become explore days at dest
+  while(days.length > daysCount){
+    // Merge last two days — absorb last day into second-to-last
+    const last = days.pop();
+    const prev = days[days.length-1];
+    prev.to = normDest;
+    prev.isLast = true;
+    prev.overnight = null;
+    prev.estMiles = Math.round(prev.estMiles + last.estMiles);
+    prev.estHrs = +(prev.estMiles/65).toFixed(1);
+    prev.longDay = prev.estMiles > maxMiPerDay;
+    prev.sights = [...new Set([...prev.sights, ...last.sights])].slice(0,4);
+    prev.passThrough = [...prev.passThrough, ...last.passThrough];
+  }
+  // Pad: if route was shorter than daysCount, add explore days at destination
   while(days.length < daysCount){
     const prev = days[days.length-1];
-    if(prev && !prev.isLast){
-      prev.isLast = false;
-      prev.overnight = isCamping ? suggestCampground(normDest) : suggestHotel(normDest);
-    }
+    if(prev) { prev.isLast=false; prev.overnight=isCamping?suggestCampground(normDest):suggestHotel(normDest); }
     days.push({
       day:days.length+1, date:dayDate(days.length+1),
       from:normDest, to:normDest,
@@ -1704,6 +1720,9 @@ function buildUSRoute(origin, dest, wps, startDate, nights, maxMiPerDay, maxHrsP
       restStop:null, passThrough:[]
     });
   }
+  // Final renumber and ensure last day is marked correctly
+  days.forEach((d,i)=>{ d.day=i+1; d.date=dayDate(i+1); d.isLast=(i===days.length-1); });
+  days[days.length-1].overnight=null;
 
   return { origin:normOrigin, dest:normDest, allStops:dedupPath, days, totalMiles:Math.round(totalMiles), nights, isCamping };
 }
