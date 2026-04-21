@@ -776,10 +776,11 @@ function autoSave(){ if(!accessToken) return; clearTimeout(asSaveTimer); asSaveT
 ═══════════════════════════════════════════════════ */
 let placeCache = {};
 async function placeSearch(fieldId){
+  // Map fieldId to actual input element ID and dropdown ID
   const inputId = fieldId==='wp'?'wp-input':fieldId==='edit'?'edit-place':fieldId;
-  const ddId = 'dd-'+fieldId;
+  const ddId    = 'dd-'+fieldId;
   const inputEl = document.getElementById(inputId);
-  if(!inputEl) return;
+  if(!inputEl){ console.warn('placeSearch: no input for fieldId='+fieldId); return; }
   const q = inputEl.value.trim();
   const dd = document.getElementById(ddId);
   if(!dd) return;
@@ -954,10 +955,22 @@ const SUBURB_MAP = {
    STEP NAV
 ═══════════════════════════════════════════════════ */
 function goStep(n){
-  document.getElementById('panel-'+currentStep).classList.remove('active');
-  document.getElementById('panel-'+n).classList.add('active');
+  // Hide current panel
+  const curPanel = document.getElementById('panel-'+currentStep);
+  if(curPanel) curPanel.classList.remove('active');
+  // Show new panel
+  const newPanel = document.getElementById('panel-'+n);
+  if(!newPanel){ console.warn('Missing panel-'+n); return; }
+  newPanel.classList.add('active');
   currentStep=n;
-  document.querySelectorAll('.step-tab').forEach(el=>{ const s=parseInt(el.dataset.step); el.classList.toggle('active',s===n); el.classList.toggle('done',s<n); });
+  // Update tabs
+  document.querySelectorAll('.step-tab').forEach(el=>{
+    const s=parseInt(el.dataset.step);
+    el.classList.toggle('active',s===n);
+    el.classList.toggle('done',s<n);
+    if(s===n) el.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
+  });
+  // Progress bar
   document.getElementById('prog').style.width=(n/8*100)+'%';
   window.scrollTo({top:0,behavior:'smooth'});
   autoSave();
@@ -1015,6 +1028,11 @@ function generateRoute(){
   const wps        = getWPs();
   const startDate  = new Date(document.getElementById('start-date').value);
   const endDate    = new Date(document.getElementById('end-date').value);
+  if(isNaN(startDate)||isNaN(endDate)||endDate<startDate){
+    showToast(lang==='ko'?'날짜를 확인해주세요.':'Please check your travel dates.');
+    document.getElementById('ai-banner').style.display='none';
+    return;
+  }
   const nights     = Math.max(1, Math.round((endDate-startDate)/86400000));
   const maxMiPerDay= parseInt(document.getElementById('d-mi').value)||350;
   const maxHrsPerDay= parseInt(document.getElementById('d-hrs').value)||6;
@@ -1333,13 +1351,42 @@ function dijkstra(start, end){
     }
   }
 
-  // No path found — direct haversine fallback
+  // No path found — find intermediate cities via haversine proximity chain
   if(!(end in dist) || dist[end] === Infinity || dist[end] === undefined){
-    const miles = haversine(start, end);
-    return {
-      path:[start, end], miles, hrs:+(miles/65).toFixed(1),
-      segments:[{from:start,to:end,miles,hrs:+(miles/65).toFixed(1),hwy:'Interstate',pois:[]}]
-    };
+    // Pick up to 3 intermediate cities to create a plausible route
+    const startCD = CITY_DATA[start], endCD = CITY_DATA[end];
+    let mids = [];
+    if(startCD && endCD){
+      // Find cities "between" start and end sorted by position along route
+      const allCities = Object.keys(CITY_DATA).filter(c=>c!==start&&c!==end&&CITY_DATA[c]);
+      // Score = how close city is to the midpoint of start→end
+      const midLat = (startCD.lat+endCD.lat)/2, midLon = (startCD.lon+endCD.lon)/2;
+      const scored = allCities.map(c=>{
+        const cd=CITY_DATA[c];
+        const dMid = Math.abs(cd.lat-midLat)+Math.abs(cd.lon-midLon);
+        // Also prefer cities that are in GRAPH (have real road connections)
+        const hasGraph = !!GRAPH[c] ? 0 : 2;
+        return {city:c, score:dMid+hasGraph};
+      }).sort((a,b)=>a.score-b.score);
+      // Take 1-2 intermediate cities
+      mids = scored.slice(0,2).map(s=>s.city);
+    }
+    // Build a chained path through intermediates
+    const chainPath = [start, ...mids, end];
+    const chainSegs = [];
+    for(let i=0;i<chainPath.length-1;i++){
+      // Try real dijkstra between each pair first
+      const sub = dijkstra(chainPath[i], chainPath[i+1]);
+      if(sub.segments.length>0 && sub.miles < 9999){
+        chainSegs.push(...sub.segments);
+      } else {
+        const mi = haversine(chainPath[i], chainPath[i+1]);
+        chainSegs.push({from:chainPath[i],to:chainPath[i+1],miles:mi,hrs:+(mi/65).toFixed(1),hwy:'US Highway',pois:[]});
+      }
+    }
+    const totalMi = chainSegs.reduce((s,sg)=>s+sg.miles,0);
+    const fullPath = [chainSegs[0].from, ...chainSegs.map(sg=>sg.to)];
+    return {path:fullPath, miles:totalMi, hrs:+(totalMi/65).toFixed(1), segments:chainSegs};
   }
 
   // Reconstruct path
@@ -1687,9 +1734,15 @@ function renderRouteUI(){
 
   // Summary metrics — different labels per mode
   const isFly = routeData.mode==='fly-rent';
-  document.getElementById('rt-miles').textContent = isFly
-    ? (routeData.flightHrs.toFixed(1)+' hr flight')
-    : (totalMiles.toLocaleString()+' mi');
+  const miLabel = document.getElementById('rt-miles');
+  const miHead  = miLabel.previousElementSibling || miLabel.parentElement.querySelector('.m-label');
+  if(isFly){
+    miLabel.textContent = routeData.flightHrs ? routeData.flightHrs.toFixed(1)+' hr flight' : '—';
+    if(miHead) miHead.textContent = lang==='ko'?'비행 시간':'Flight Time';
+  } else {
+    miLabel.textContent = totalMiles.toLocaleString()+' mi';
+    if(miHead) miHead.textContent = lang==='ko'?'총 거리':'Total Miles';
+  }
   document.getElementById('rt-dur').textContent= lang==='ko'?`${nights}박 ${nights+1}일`:`${nights}N/${nights+1}D`;
   document.getElementById('rt-stays').textContent=nights;
   document.getElementById('rt-visits').textContent=days.reduce((s,d)=>s+d.sights.length,0);
@@ -1881,11 +1934,13 @@ function renderWeather(){
   const icons=['⛅','🌤️','☀️','🌦️','⛈️','🌤️'];
   const conds_en=['Partly cloudy','Mostly sunny','Sunny','Showers','Thunderstorm','Clear'];
   const conds_ko=['구름 조금','맑음','맑음','소나기','뇌우','맑음'];
-  routeData.allStops.forEach((city,i)=>{
-    const temp=Math.floor(Math.random()*20+62);
+  // Show weather for each day's destination city
+  const weatherCities = [...new Set(routeData.days.map(d=>d.to))];
+  weatherCities.forEach((city)=>{
+    const temp=Math.floor(Math.random()*22+60);
     const ci=Math.floor(Math.random()*icons.length);
     const chip=document.createElement('div'); chip.className='w-chip';
-    chip.innerHTML=`<div class="w-city">${city.split(',')[0]}</div><div class="w-icon">${icons[ci]}</div><div class="w-temp">${temp}°F</div><div class="w-cond">${lang==='ko'?conds_ko[ci]:conds_en[ci]}</div>`;
+    chip.innerHTML='<div class="w-city">'+city.split(',')[0]+'</div><div class="w-icon">'+icons[ci]+'</div><div class="w-temp">'+temp+'°F</div><div class="w-cond">'+(lang==='ko'?conds_ko[ci]:conds_en[ci])+'</div>';
     strip.appendChild(chip);
   });
 }
@@ -1966,10 +2021,13 @@ function renderEvents(){
   const startDate=new Date(document.getElementById('start-date').value);
   const endDate=new Date(document.getElementById('end-date').value);
 
-  if(!routeData||isNaN(startDate)||isNaN(endDate)){ container.innerHTML=`<div class="no-events">${t('no_events')}</div>`; return; }
-
-  // Generate events that fall within the actual travel date range
-  const events=generateEvents(startDate,endDate,routeData.allStops);
+  if(!routeData||isNaN(startDate)||isNaN(endDate)){
+    container.innerHTML='<div class="no-events">'+t('no_events')+'</div>'; return;
+  }
+  const stops = routeData.allStops && routeData.allStops.length>0
+    ? routeData.allStops
+    : [routeData.origin, routeData.dest].filter(Boolean);
+  const events=generateEvents(startDate,endDate,stops);
 
   if(!events.length){ container.innerHTML=`<div class="no-events">${t('no_events')}</div>`; return; }
 
@@ -2128,6 +2186,12 @@ function showToast(msg){ const t=document.getElementById('toast'); t.textContent
 
 // Apply language on load
 applyI18n();
+
+// Fix drive-settings visibility on page load
+document.getElementById('drive-settings').style.display = transport.startsWith('car') ? '' : 'none';
+
+// Ensure step 1 is active on load
+document.getElementById('panel-1').classList.add('active');
 </script>
 </body>
 </html>
