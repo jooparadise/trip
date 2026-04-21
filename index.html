@@ -554,15 +554,11 @@ input[type=range]::-webkit-slider-thumb{appearance:none;width:18px;height:18px;b
 <div id="toast"></div>
 
 <script>
-/* ═══════════════════════════════════════════
-   CONFIG
-═══════════════════════════════════════════ */
+/* CONFIG */
 const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
 const PLACES_API_KEY   = 'YOUR_PLACES_API_KEY';
 
-/* ═══════════════════════════════════════════
-   I18N
-═══════════════════════════════════════════ */
+/* I18N */
 const I18N = {
   en:{
     save:'Save',logout:'Sign Out',google_sign_in:'Sign in with Google',
@@ -630,27 +626,21 @@ const I18N = {
   }
 };
 
-let lang =
-
-/* ═══════════════════════════════════════════
-   STATE
-═══════════════════════════════════════════ */
-let lang          = localStorage.getItem('waytrip_lang') || 'en';
-let currentStep   = 1;
-let accessToken   = null;
-let googleUser    = null;
-let driveFileId   = null;
-let guestMode     = false;
-let routeData     = null;
+/* STATE */
+let lang         = localStorage.getItem('waytrip_lang') || 'en';
+let currentStep  = 1;
+let accessToken  = null;
+let googleUser   = null;
+let driveFileId  = null;
+let guestMode    = false;
+let routeData    = null;
 let asSaveTimer;
-let totalExpense  = 0;
-const guests      = {adults:2, children:1, infants:0};
-let transport     = 'car-hotel';
-let category      = 'family';
+let totalExpense = 0;
+const guests     = {adults:2, children:1, infants:0};
+let transport    = 'car-hotel';
+let category     = 'family';
 
-/* ═══════════════════════════════════════════
-   DATA
-═══════════════════════════════════════════ */
+/* DATA */
 const US_CITIES = [
   'New York, NY','Los Angeles, CA','Chicago, IL','Houston, TX','Phoenix, AZ',
   'Philadelphia, PA','San Antonio, TX','San Diego, CA','Dallas, TX','San Jose, CA',
@@ -698,7 +688,7 @@ const US_CITIES = [
   'Waco, TX','Lubbock, TX','Amarillo, TX','El Paso, TX','Midland, TX','Odessa, TX',
   'Burlington, VT','Manchester, NH','Portland, ME','Augusta, ME','Bangor, ME',
   'Concord, NH','Montpelier, VT'
-];;
+];
 
 const SUBURB_MAP = {
   'Dallas, TX':         ['McKinney','Allen','Frisco','Plano','Richardson','Garland','Mesquite','Irving','Grand Prairie','Arlington','Denton','Lewisville','Flower Mound','Carrollton','Rockwall','Forney','Wylie','Rowlett','Grapevine','Coppell','Cedar Hill','DeSoto','Duncanville','Mansfield','Southlake','Keller','Euless','Bedford','Hurst','Colleyville'],
@@ -726,7 +716,7 @@ const SUBURB_MAP = {
   'San Francisco, CA':  ['Oakland','Berkeley','San Jose','Fremont','Hayward','Santa Clara','Sunnyvale','Mountain View','Palo Alto','Redwood City','San Mateo','Daly City','South San Francisco','San Leandro','Concord','Walnut Creek','Pleasanton','Livermore'],
   'Las Vegas, NV':      ['Henderson','North Las Vegas','Boulder City','Mesquite','Pahrump','Enterprise','Summerlin','Paradise','Spring Valley'],
   'Salt Lake City, UT': ['West Jordan','West Valley City','Sandy','Orem','Provo','Taylorsville','Murray','Millcreek','Ogden','Layton','Clearfield','South Jordan','Lehi','Draper'],
-  'Kansas City, MO':    ['Overland Park','Olathe','Shawnee','Lenexa','Independence','Lee's Summit','Blue Springs','Liberty','Grandview','Raytown'],
+  'Kansas City, MO':    ['Overland Park','Olathe','Shawnee','Lenexa','Independence','Lee\'s Summit','Blue Springs','Liberty','Grandview','Raytown'],
   'Indianapolis, IN':   ['Carmel','Fishers','Noblesville','Westfield','Greenwood','Lawrence','Anderson','Muncie'],
   'Columbus, OH':       ['Dublin','Hilliard','Grove City','Gahanna','Westerville','Reynoldsburg','Newark','Lancaster','Delaware'],
   'Louisville, KY':     ['Lexington','Bowling Green','Elizabethtown','Owensboro','Covington','Florence','Shively','St. Matthews','Jeffersontown'],
@@ -933,7 +923,6 @@ const ROAD_EDGES = [
   ['Seattle, WA','Boise, ID',496,7.0,'I-90/I-84',['Spokane, WA','Pendleton, OR']],
 ];
 
-// Build bidirectional adjacency list with weights
 const GRAPH = {};
 ROAD_EDGES.forEach(([a,b,miles,hrs,hwy,pois])=>{
   if(!GRAPH[a]) GRAPH[a]={};
@@ -942,9 +931,7 @@ ROAD_EDGES.forEach(([a,b,miles,hrs,hwy,pois])=>{
   GRAPH[b][a]={miles,hrs,hwy,pois};
 });
 
-/* ═══════════════════════════════════════════
-   FUNCTIONS
-═══════════════════════════════════════════ */
+/* FUNCTIONS */
 function setLang(l) {
   lang = l;
   localStorage.setItem('waytrip_lang', l);
@@ -968,13 +955,6 @@ function applyI18n() {
 /* ═══════════════════════════════════════════════════
    STATE
 ═══════════════════════════════════════════════════ */
-let currentStep = 1;
-let accessToken = null, googleUser = null, driveFileId = null, guestMode = false;
-const guests = {adults:2, children:1, infants:0};
-let transport = 'car-hotel', category = 'family';
-let totalExpense = 0;
-let routeData = null; // generated route
-
 /* ═══════════════════════════════════════════════════
    INIT — set today's date
 ═══════════════════════════════════════════════════ */
@@ -1071,13 +1051,11 @@ function restoreState(s){
   updateDuration();
   if(s.currentStep>1) goStep(s.currentStep);
 }
-let asSaveTimer;
 function autoSave(){ if(!accessToken) return; clearTimeout(asSaveTimer); asSaveTimer=setTimeout(saveToDrive,3000); }
 
 /* ═══════════════════════════════════════════════════
    PLACE AUTOCOMPLETE (Google Places API or fallback)
 ═══════════════════════════════════════════════════ */
-let placeCache = {};
 async function placeSearch(fieldId){
   // Map fieldId to actual input element ID and dropdown ID
   const inputId = fieldId==='wp'?'wp-input':fieldId==='edit'?'edit-place':fieldId;
@@ -1162,94 +1140,12 @@ function renderDD(dd, items, inputId){
 /* ═══════════════════════════════════════════════════
    US CITIES DATASET (top cities)
 ═══════════════════════════════════════════════════ */
-const US_CITIES = [
-  'New York, NY','Los Angeles, CA','Chicago, IL','Houston, TX','Phoenix, AZ',
-  'Philadelphia, PA','San Antonio, TX','San Diego, CA','Dallas, TX','San Jose, CA',
-  'Austin, TX','Jacksonville, FL','Fort Worth, TX','Columbus, OH','Charlotte, NC',
-  'Indianapolis, IN','San Francisco, CA','Seattle, WA','Denver, CO','Washington, DC',
-  'Nashville, TN','Oklahoma City, OK','El Paso, TX','Boston, MA','Portland, OR',
-  'Las Vegas, NV','Memphis, TN','Louisville, KY','Baltimore, MD','Milwaukee, WI',
-  'Albuquerque, NM','Tucson, AZ','Fresno, CA','Sacramento, CA','Mesa, AZ',
-  'Kansas City, MO','Atlanta, GA','Omaha, NE','Colorado Springs, CO','Raleigh, NC',
-  'Long Beach, CA','Virginia Beach, VA','Minneapolis, MN','Tampa, FL','New Orleans, LA',
-  'Arlington, TX','Bakersfield, CA','Honolulu, HI','Anaheim, CA','Aurora, CO',
-  'Santa Ana, CA','Corpus Christi, TX','Riverside, CA','St. Louis, MO','Lexington, KY',
-  'Pittsburgh, PA','Stockton, CA','Anchorage, AK','Cincinnati, OH','St. Paul, MN',
-  'Greensboro, NC','Toledo, OH','Newark, NJ','Plano, TX','Henderson, NV',
-  'Orlando, FL','Chandler, AZ','St. Petersburg, FL','Laredo, TX','Norfolk, VA',
-  'Madison, WI','Durham, NC','Lubbock, TX','Winston-Salem, NC','Garland, TX',
-  'Glendale, AZ','Hialeah, FL','Reno, NV','Baton Rouge, LA','Irvine, CA',
-  'Chesapeake, VA','Irving, TX','Scottsdale, AZ','North Las Vegas, NV','Fremont, CA',
-  'Gilbert, AZ','San Bernardino, CA','Birmingham, AL','Boise, ID','Rochester, NY',
-  'Richmond, VA','Spokane, WA','Des Moines, IA','Tacoma, WA','Fontana, CA',
-  'Fayetteville, NC','Moreno Valley, CA','Columbus, GA','Glendale, CA','Little Rock, AR',
-  'Akron, OH','Huntington Beach, CA','Grand Rapids, MI','Salt Lake City, UT','Tallahassee, FL',
-  'Huntsville, AL','Worcester, MA','Knoxville, TN','Providence, RI','Brownsville, TX',
-  'Santa Clarita, CA','Garden Grove, CA','Oceanside, CA','Chattanooga, TN','Fort Lauderdale, FL',
-  'Rancho Cucamonga, CA','Santa Rosa, CA','Port Arthur, TX','Tempe, AZ','Cape Coral, FL',
-  'Oxnard, CA','Eugene, OR','Peoria, AZ','Elk Grove, CA','Salem, OR',
-  'Cary, NC','Hayward, CA','Fort Collins, CO','Lakewood, CO','Springfield, MO',
-  'Jackson, MS','Alexandria, VA','Clarksville, TN','Sunnyvale, CA','Roseville, CA',
-  'Hollywood, FL','Escondido, CA','Kansas City, KS','Torrance, CA','Pomona, CA',
-  'Pasadena, TX','Paterson, NJ','Surprise, AZ','Bridgeport, CT','Savannah, GA',
-  'Mesquite, TX','Syracuse, NY','McAllen, TX','Torrance, CA','Killeen, TX',
-  'Rockford, IL','Salinas, CA','Pasadena, CA','Palmdale, CA','Joliet, IL',
-  'Lancaster, CA','Macon, GA','Corona, CA','Bellevue, WA','Amarillo, TX',
-  'Sunnyvale, CA','Lakewood, CO','Wichita, KS','Fort Wayne, IN','Chesapeake, VA',
-  'Miami, FL','Minneapolis, MN','Aurora, IL','New Haven, CT','Hartford, CT',
-  'Sioux Falls, SD','Fargo, ND','Grand Forks, ND','Bismarck, ND','Casper, WY',
-  'Cheyenne, WY','Provo, UT','Ogden, UT','Layton, UT','West Valley City, UT',
-  'Missoula, MT','Great Falls, MT','Billings, MT','Helena, MT','Bozeman, MT',
-  'Flagstaff, AZ','Sedona, AZ','Scottsdale, AZ','Tempe, AZ','Chandler, AZ',
-  'Napa, CA','Santa Barbara, CA','Monterey, CA','San Luis Obispo, CA','Palm Springs, CA',
-  'Key West, FL','Naples, FL','Sarasota, FL','Clearwater, FL','St. Augustine, FL',
-  'Asheville, NC','Wilmington, NC','Myrtle Beach, SC','Charleston, SC','Columbia, SC',
-  'Lexington, VA','Charlottesville, VA','Fredericksburg, VA','Roanoke, VA',
-  'Traverse City, MI','Ann Arbor, MI','Lansing, MI','Flint, MI','Grand Rapids, MI',
-  'Waco, TX','Lubbock, TX','Amarillo, TX','El Paso, TX','Midland, TX','Odessa, TX',
-  'Burlington, VT','Manchester, NH','Portland, ME','Augusta, ME','Bangor, ME',
-  'Concord, NH','Montpelier, VT'
-];
-
-
 /* ═══════════════════════════════════════════════════
    SUBURB / SMALLER CITY MAP
    metro city → list of nearby cities/suburbs
    Lets users type "McKinney, TX" and get a match
    even if not in US_CITIES.
 ═══════════════════════════════════════════════════ */
-const SUBURB_MAP = {
-  'Dallas, TX':         ['McKinney','Allen','Frisco','Plano','Richardson','Garland','Mesquite','Irving','Grand Prairie','Arlington','Denton','Lewisville','Flower Mound','Carrollton','Rockwall','Forney','Wylie','Rowlett','Grapevine','Coppell','Cedar Hill','DeSoto','Duncanville','Mansfield','Southlake','Keller','Euless','Bedford','Hurst','Colleyville'],
-  'Fort Worth, TX':     ['Burleson','Crowley','Cleburne','Weatherford','Azle','Benbrook','White Settlement','Saginaw','Watauga','North Richland Hills','Haltom City','Richland Hills'],
-  'Houston, TX':        ['Sugar Land','Pearland','League City','Friendswood','Missouri City','Katy','Cypress','Spring','The Woodlands','Conroe','Humble','Baytown','Pasadena','Clear Lake City','Stafford','Rosenberg','Richmond'],
-  'San Antonio, TX':    ['New Braunfels','Seguin','Schertz','Cibolo','Converse','Universal City','Boerne','Kerrville','Floresville','Pleasanton'],
-  'Austin, TX':         ['Round Rock','Cedar Park','Pflugerville','Georgetown','Kyle','Buda','Leander','San Marcos','Lakeway','Bee Cave','Bastrop','Taylor','Hutto'],
-  'Dallas, TX':         ['McKinney','Allen','Frisco','Plano','Richardson'],
-  'Los Angeles, CA':    ['Pasadena','Burbank','Glendale','Santa Monica','Torrance','Compton','Hawthorne','El Segundo','Inglewood','Long Beach','Carson','Lakewood','Downey','Whittier','La Mirada','Cerritos','Norwalk','Paramount','Pomona','Ontario','Chino','Rancho Cucamonga','Fontana','Rialto','San Bernardino','Redlands','Upland','Claremont','Covina','West Covina','Azusa','Monrovia','Arcadia','El Monte','Baldwin Park'],
-  'New York, NY':       ['Newark','Jersey City','Hoboken','Yonkers','New Rochelle','White Plains','Stamford','Bridgeport','Hartford','Trenton','Princeton','Edison','Elizabeth','Paterson','Freehold','Morristown'],
-  'Chicago, IL':        ['Naperville','Aurora','Elgin','Joliet','Waukegan','Evanston','Schaumburg','Bolingbrook','Arlington Heights','Palatine','Rockford','Kenosha','Racine','Gary'],
-  'Atlanta, GA':        ['Sandy Springs','Roswell','Johns Creek','Alpharetta','Marietta','Smyrna','Gainesville','Lawrenceville','Peachtree City','Newnan','Douglasville','Kennesaw','Woodstock','Canton','Rome','Cartersville'],
-  'Phoenix, AZ':        ['Mesa','Chandler','Gilbert','Scottsdale','Tempe','Peoria','Glendale','Surprise','Avondale','Goodyear','Buckeye','Queen Creek','San Tan Valley','Casa Grande','Maricopa','Florence'],
-  'Miami, FL':          ['Fort Lauderdale','Hollywood','Pembroke Pines','Miramar','Coral Springs','Pompano Beach','Boca Raton','Delray Beach','Boynton Beach','West Palm Beach','Hialeah','Homestead','Doral','Aventura','Davie'],
-  'Tampa, FL':          ['St. Petersburg','Clearwater','Largo','Brandon','Riverview','Lakeland','Sarasota','Bradenton','Kissimmee','Plant City','Dunedin','Safety Harbor','Palm Harbor'],
-  'Orlando, FL':        ['Kissimmee','Sanford','Deltona','Daytona Beach','Melbourne','Palm Bay','Titusville','Cocoa','Ocala','Gainesville','Leesburg','The Villages','Winter Haven','Lakeland','Winter Park'],
-  'Nashville, TN':      ['Murfreesboro','Franklin','Brentwood','Smyrna','Hendersonville','Mt. Juliet','Lebanon','Gallatin','Clarksville','Columbia','Shelbyville'],
-  'Charlotte, NC':      ['Concord','Kannapolis','Gastonia','Rock Hill','Monroe','Mooresville','Huntersville','Cornelius','Davidson','Matthews','Mint Hill','Indian Trail'],
-  'Washington, DC':     ['Arlington','Alexandria','Bethesda','Silver Spring','Rockville','Gaithersburg','Germantown','Frederick','Manassas','Woodbridge','Reston','Herndon','Leesburg','Falls Church','Fairfax','Vienna','McLean','Tysons'],
-  'Seattle, WA':        ['Bellevue','Redmond','Kirkland','Renton','Kenmore','Bothell','Sammamish','Issaquah','Mercer Island','Shoreline','Lynnwood','Edmonds','Everett','Tacoma','Federal Way','Auburn','Kent','Tukwila'],
-  'Denver, CO':         ['Aurora','Lakewood','Thornton','Arvada','Westminster','Centennial','Highlands Ranch','Littleton','Englewood','Broomfield','Castle Rock','Parker','Brighton','Longmont','Boulder','Fort Collins','Greeley','Loveland'],
-  'Minneapolis, MN':    ['St. Paul','Bloomington','Brooklyn Park','Plymouth','Maple Grove','Woodbury','Eagan','Eden Prairie','Burnsville','Coon Rapids','Blaine','Minnetonka','Apple Valley','Edina'],
-  'Boston, MA':         ['Cambridge','Quincy','Brockton','Worcester','Springfield','Lowell','Lynn','New Bedford','Fall River','Framingham','Newton','Somerville','Lawrence','Haverhill','Peabody','Malden','Medford'],
-  'Portland, OR':       ['Beaverton','Hillsboro','Gresham','Lake Oswego','Tigard','Tualatin','Wilsonville','Oregon City','Milwaukie','Happy Valley','Troutdale','Sandy','Newberg','McMinnville'],
-  'San Francisco, CA':  ['Oakland','Berkeley','San Jose','Fremont','Hayward','Santa Clara','Sunnyvale','Mountain View','Palo Alto','Redwood City','San Mateo','Daly City','South San Francisco','San Leandro','Concord','Walnut Creek','Pleasanton','Livermore'],
-  'Las Vegas, NV':      ['Henderson','North Las Vegas','Boulder City','Mesquite','Pahrump','Enterprise','Summerlin','Paradise','Spring Valley'],
-  'Salt Lake City, UT': ['West Jordan','West Valley City','Sandy','Orem','Provo','Taylorsville','Murray','Millcreek','Ogden','Layton','Clearfield','South Jordan','Lehi','Draper'],
-  'Kansas City, MO':    ['Overland Park','Olathe','Shawnee','Lenexa','Independence','Lee's Summit','Blue Springs','Liberty','Grandview','Raytown'],
-  'Indianapolis, IN':   ['Carmel','Fishers','Noblesville','Westfield','Greenwood','Lawrence','Anderson','Muncie'],
-  'Columbus, OH':       ['Dublin','Hilliard','Grove City','Gahanna','Westerville','Reynoldsburg','Newark','Lancaster','Delaware'],
-  'Louisville, KY':     ['Lexington','Bowling Green','Elizabethtown','Owensboro','Covington','Florence','Shively','St. Matthews','Jeffersontown'],
-  'Memphis, TN':        ['Germantown','Bartlett','Collierville','Cordova','Southaven','Horn Lake','Olive Branch','Hernando','Marion'],
-};
 /* ═══════════════════════════════════════════════════
    STEP NAV
 ═══════════════════════════════════════════════════ */
@@ -1366,84 +1262,6 @@ function generateRoute(){
 ═══════════════════════════════════════════════════ */
 
 // Each city node: key = canonical name, lat/lon for haversine fallback
-const CITY_DATA = {
-  'Dallas, TX':         { lat:32.78, lon:-96.80, st:'TX', hwy:['I-20','I-30','I-35','I-45'] },
-  'Fort Worth, TX':     { lat:32.75, lon:-97.33, st:'TX', hwy:['I-20','I-30','I-35W'] },
-  'Houston, TX':        { lat:29.76, lon:-95.37, st:'TX', hwy:['I-10','I-45','I-69'] },
-  'San Antonio, TX':    { lat:29.42, lon:-98.49, st:'TX', hwy:['I-10','I-35','I-37'] },
-  'Austin, TX':         { lat:30.27, lon:-97.74, st:'TX', hwy:['I-35','US-183','TX-71'] },
-  'New Orleans, LA':    { lat:29.95, lon:-90.07, st:'LA', hwy:['I-10','I-12','US-90'] },
-  'Baton Rouge, LA':    { lat:30.45, lon:-91.15, st:'LA', hwy:['I-10','I-12','US-61'] },
-  'Jackson, MS':        { lat:32.30, lon:-90.18, st:'MS', hwy:['I-20','I-55'] },
-  'Meridian, MS':       { lat:32.37, lon:-88.70, st:'MS', hwy:['I-20','I-59'] },
-  'Birmingham, AL':     { lat:33.52, lon:-86.80, st:'AL', hwy:['I-20','I-59','I-65'] },
-  'Montgomery, AL':     { lat:32.36, lon:-86.30, st:'AL', hwy:['I-65','I-85','US-231'] },
-  'Mobile, AL':         { lat:30.69, lon:-88.04, st:'AL', hwy:['I-10','I-65','US-98'] },
-  'Atlanta, GA':        { lat:33.75, lon:-84.39, st:'GA', hwy:['I-20','I-75','I-85'] },
-  'Macon, GA':          { lat:32.84, lon:-83.63, st:'GA', hwy:['I-16','I-75','US-129'] },
-  'Savannah, GA':       { lat:32.08, lon:-81.10, st:'GA', hwy:['I-16','I-95','US-17'] },
-  'Tallahassee, FL':    { lat:30.44, lon:-84.28, st:'FL', hwy:['I-10','US-19','US-90'] },
-  'Jacksonville, FL':   { lat:30.33, lon:-81.66, st:'FL', hwy:['I-10','I-95','I-295'] },
-  'Gainesville, FL':    { lat:29.65, lon:-82.33, st:'FL', hwy:['I-75','US-441','US-27'] },
-  'Orlando, FL':        { lat:28.54, lon:-81.38, st:'FL', hwy:['I-4','I-95','Florida Tpk'] },
-  'Tampa, FL':          { lat:27.95, lon:-82.46, st:'FL', hwy:['I-4','I-75','I-275'] },
-  'Miami, FL':          { lat:25.77, lon:-80.19, st:'FL', hwy:['I-95','Florida Tpk','US-1'] },
-  'Memphis, TN':        { lat:35.15, lon:-90.05, st:'TN', hwy:['I-40','I-55','I-69'] },
-  'Nashville, TN':      { lat:36.17, lon:-86.78, st:'TN', hwy:['I-24','I-40','I-65'] },
-  'Knoxville, TN':      { lat:35.96, lon:-83.92, st:'TN', hwy:['I-40','I-75','I-81'] },
-  'Chattanooga, TN':    { lat:35.05, lon:-85.31, st:'TN', hwy:['I-24','I-75','US-27'] },
-  'Louisville, KY':     { lat:38.25, lon:-85.76, st:'KY', hwy:['I-64','I-65','I-71'] },
-  'Lexington, KY':      { lat:38.05, lon:-84.50, st:'KY', hwy:['I-64','I-75','US-60'] },
-  'Cincinnati, OH':     { lat:39.10, lon:-84.51, st:'OH', hwy:['I-71','I-74','I-75'] },
-  'Columbus, OH':       { lat:39.96, lon:-82.99, st:'OH', hwy:['I-70','I-71'] },
-  'Cleveland, OH':      { lat:41.50, lon:-81.69, st:'OH', hwy:['I-71','I-77','I-90'] },
-  'Pittsburgh, PA':     { lat:40.44, lon:-79.99, st:'PA', hwy:['I-70','I-76','I-79'] },
-  'Philadelphia, PA':   { lat:39.95, lon:-75.17, st:'PA', hwy:['I-76','I-95','US-1'] },
-  'New York, NY':       { lat:40.71, lon:-74.01, st:'NY', hwy:['I-78','I-87','I-95'] },
-  'Boston, MA':         { lat:42.36, lon:-71.06, st:'MA', hwy:['I-90','I-93','I-95'] },
-  'Washington, DC':     { lat:38.91, lon:-77.04, st:'DC', hwy:['I-66','I-95','I-270'] },
-  'Baltimore, MD':      { lat:39.29, lon:-76.61, st:'MD', hwy:['I-70','I-83','I-95'] },
-  'Richmond, VA':       { lat:37.54, lon:-77.44, st:'VA', hwy:['I-64','I-85','I-95'] },
-  'Charlotte, NC':      { lat:35.23, lon:-80.84, st:'NC', hwy:['I-77','I-85'] },
-  'Raleigh, NC':        { lat:35.78, lon:-78.64, st:'NC', hwy:['I-40','I-87','US-1'] },
-  'Columbia, SC':       { lat:34.00, lon:-81.03, st:'SC', hwy:['I-20','I-26','I-77'] },
-  'Charleston, SC':     { lat:32.78, lon:-79.93, st:'SC', hwy:['I-17','I-26','US-17'] },
-  'Kansas City, MO':    { lat:39.10, lon:-94.58, st:'MO', hwy:['I-35','I-70'] },
-  'St. Louis, MO':      { lat:38.63, lon:-90.20, st:'MO', hwy:['I-44','I-55','I-64','I-70'] },
-  'Chicago, IL':        { lat:41.85, lon:-87.65, st:'IL', hwy:['I-55','I-57','I-80','I-90'] },
-  'Indianapolis, IN':   { lat:39.77, lon:-86.16, st:'IN', hwy:['I-65','I-69','I-70','I-74'] },
-  'Detroit, MI':        { lat:42.33, lon:-83.05, st:'MI', hwy:['I-75','I-94','I-96'] },
-  'Minneapolis, MN':    { lat:44.98, lon:-93.27, st:'MN', hwy:['I-35','I-94'] },
-  'Milwaukee, WI':      { lat:43.04, lon:-87.91, st:'WI', hwy:['I-43','I-94'] },
-  'Denver, CO':         { lat:39.74, lon:-104.98, st:'CO', hwy:['I-25','I-70','I-76'] },
-  'Colorado Springs, CO':{ lat:38.83, lon:-104.82, st:'CO', hwy:['I-25','US-24'] },
-  'Albuquerque, NM':    { lat:35.08, lon:-106.65, st:'NM', hwy:['I-25','I-40','I-40'] },
-  'El Paso, TX':        { lat:31.76, lon:-106.49, st:'TX', hwy:['I-10','I-25','US-54'] },
-  'Tucson, AZ':         { lat:32.22, lon:-110.97, st:'AZ', hwy:['I-10','I-19','US-80'] },
-  'Phoenix, AZ':        { lat:33.45, lon:-112.07, st:'AZ', hwy:['I-10','I-17','I-40'] },
-  'Las Vegas, NV':      { lat:36.17, lon:-115.14, st:'NV', hwy:['I-15','US-93','US-95'] },
-  'Los Angeles, CA':    { lat:34.05, lon:-118.24, st:'CA', hwy:['I-5','I-10','I-405'] },
-  'San Diego, CA':      { lat:32.72, lon:-117.16, st:'CA', hwy:['I-5','I-8','CA-94'] },
-  'San Francisco, CA':  { lat:37.77, lon:-122.42, st:'CA', hwy:['I-80','US-101','I-280'] },
-  'Sacramento, CA':     { lat:38.58, lon:-121.49, st:'CA', hwy:['I-5','I-80','US-50'] },
-  'Portland, OR':       { lat:45.52, lon:-122.68, st:'OR', hwy:['I-5','I-84','US-26'] },
-  'Seattle, WA':        { lat:47.61, lon:-122.33, st:'WA', hwy:['I-5','I-90','I-405'] },
-  'Boise, ID':          { lat:43.62, lon:-116.20, st:'ID', hwy:['I-84','US-20','US-26'] },
-  'Salt Lake City, UT': { lat:40.76, lon:-111.89, st:'UT', hwy:['I-15','I-80','I-215'] },
-  'Shreveport, LA':     { lat:32.52, lon:-93.75, st:'LA', hwy:['I-20','I-49','US-71'] },
-  'Little Rock, AR':    { lat:34.75, lon:-92.29, st:'AR', hwy:['I-30','I-40','I-430'] },
-  'Oklahoma City, OK':  { lat:35.47, lon:-97.52, st:'OK', hwy:['I-35','I-40','I-44'] },
-  'Tulsa, OK':          { lat:36.15, lon:-95.99, st:'OK', hwy:['I-44','I-244','US-75'] },
-  'Wichita, KS':        { lat:37.69, lon:-97.34, st:'KS', hwy:['I-35','I-135','US-54'] },
-  'Amarillo, TX':       { lat:35.22, lon:-101.83, st:'TX', hwy:['I-27','I-40','US-87'] },
-  'Lubbock, TX':        { lat:33.58, lon:-101.85, st:'TX', hwy:['I-27','US-84','US-87'] },
-  'Corpus Christi, TX': { lat:27.80, lon:-97.40, st:'TX', hwy:['I-37','US-77','US-181'] },
-  'Pensacola, FL':      { lat:30.42, lon:-87.22, st:'FL', hwy:['I-10','US-29','US-98'] },
-  'Biloxi, MS':         { lat:30.40, lon:-88.88, st:'MS', hwy:['I-10','I-110','US-90'] },
-  'Lake Charles, LA':   { lat:30.23, lon:-93.22, st:'LA', hwy:['I-10','I-210','US-171'] },
-  'Lafayette, LA':      { lat:30.22, lon:-92.02, st:'LA', hwy:['I-10','I-49','US-90'] },
-};
-
 // Curated real POIs for each major city
 const CITY_POIS = {
   'Dallas, TX':       { sights:['Sixth Floor Museum (JFK)','Deep Ellum Arts District','Dallas Arboretum','Perot Museum of Nature and Science'], food:['Pecan Lodge BBQ','Ellen\'s Southern Kitchen','Al Biernat\'s'], rest:['Post Oak Travel Plaza (I-45)','Pilot Travel Center (I-20 E)'], gas:['Buc-ee\'s (I-45, Ennis)'] },
@@ -1467,130 +1285,7 @@ const CITY_POIS = {
 
 // Directed edge table: [cityA, cityB, miles, hours, highway, midpoint_pois]
 // Covers the most-traveled US interstate corridors
-const ROAD_EDGES = [
-  // Texas
-  ['Dallas, TX','Fort Worth, TX',32,0.5,'I-30',[]],
-  ['Dallas, TX','Houston, TX',239,3.5,'I-45',['Corsicana, TX','Huntsville, TX']],
-  ['Dallas, TX','San Antonio, TX',274,4.0,'I-35',['Waco, TX','Austin, TX']],
-  ['Dallas, TX','Austin, TX',195,3.0,'I-35',['Waco, TX']],
-  ['Dallas, TX','Shreveport, LA',188,2.8,'I-20',['Marshall, TX']],
-  ['Dallas, TX','Oklahoma City, OK',206,3.0,'I-35',['Gainesville, TX','Ardmore, OK']],
-  ['Dallas, TX','Amarillo, TX',362,5.2,'I-40',['Abilene, TX','Childress, TX']],
-  ['Dallas, TX','Jackson, MS',412,6.0,'I-20',['Shreveport, LA','Vicksburg, MS']],
-  ['Dallas, TX','Little Rock, AR',320,4.7,'I-30',['Texarkana, TX']],
-  ['Houston, TX','San Antonio, TX',197,2.8,'I-10',['San Marcos, TX','New Braunfels, TX']],
-  ['Houston, TX','New Orleans, LA',348,5.0,'I-10',['Lake Charles, LA','Lafayette, LA','Baton Rouge, LA']],
-  ['Houston, TX','Beaumont, TX',85,1.3,'I-10',[]],
-  ['San Antonio, TX','El Paso, TX',549,7.5,'I-10',['Ozona, TX','Fort Stockton, TX']],
-  ['Austin, TX','San Antonio, TX',80,1.2,'I-35',[]],
-  ['Austin, TX','Houston, TX',162,2.5,'US-290 / US-71',['La Grange, TX']],
-  ['Amarillo, TX','Albuquerque, NM',286,4.0,'I-40',['Tucumcari, NM']],
-  ['El Paso, TX','Albuquerque, NM',267,3.8,'I-10/I-25',['Las Cruces, NM']],
-  ['El Paso, TX','Tucson, AZ',270,3.7,'I-10',['Lordsburg, NM','Deming, NM']],
-  // Gulf Coast corridor: TX → FL
-  ['Houston, TX','Baton Rouge, LA',265,3.8,'I-10',['Lake Charles, LA','Lafayette, LA']],
-  ['New Orleans, LA','Biloxi, MS',90,1.3,'I-10',['Bay St. Louis, MS']],
-  ['Biloxi, MS','Mobile, AL',60,0.9,'I-10',[]],
-  ['Mobile, AL','Pensacola, FL',59,0.9,'I-10',[]],
-  ['Pensacola, FL','Tallahassee, FL',197,2.8,'I-10',['Crestview, FL','Defuniak Springs, FL']],
-  ['Tallahassee, FL','Jacksonville, FL',162,2.3,'I-10',['Lake City, FL']],
-  ['Jacksonville, FL','Orlando, FL',142,2.1,'I-95 / I-4',['Daytona Beach, FL']],
-  ['Jacksonville, FL','Gainesville, FL',70,1.0,'I-75',[]],
-  ['Gainesville, FL','Orlando, FL',111,1.6,'I-75 / Florida Tpk',['Ocala, FL']],
-  ['Orlando, FL','Tampa, FL',84,1.3,'I-4',['Lakeland, FL']],
-  ['Orlando, FL','Miami, FL',236,3.4,'Florida Tpk',['Fort Pierce, FL','Fort Lauderdale, FL']],
-  ['Tampa, FL','Miami, FL',281,3.9,'I-75 / Alligator Alley',['Naples, FL','Fort Lauderdale, FL']],
-  // Southeast
-  ['Atlanta, GA','Birmingham, AL',147,2.2,'I-20',['Anniston, AL']],
-  ['Atlanta, GA','Nashville, TN',249,3.7,'I-24',['Chattanooga, TN']],
-  ['Atlanta, GA','Charlotte, NC',246,3.7,'I-85',['Greenville, SC','Spartanburg, SC']],
-  ['Atlanta, GA','Macon, GA',83,1.2,'I-75',[]],
-  ['Atlanta, GA','Savannah, GA',249,3.7,'I-16',['Macon, GA']],
-  ['Atlanta, GA','Jacksonville, FL',348,5.0,'I-75',['Valdosta, GA']],
-  ['Atlanta, GA','Tallahassee, FL',274,4.0,'I-75',['Valdosta, GA']],
-  ['Birmingham, AL','Montgomery, AL',88,1.3,'I-65',[]],
-  ['Birmingham, AL','Nashville, TN',190,2.8,'I-65',['Cullman, AL','Decatur, AL']],
-  ['Birmingham, AL','Memphis, TN',239,3.4,'I-22/US-78',['Tupelo, MS']],
-  ['Montgomery, AL','Mobile, AL',169,2.4,'I-65',['Evergreen, AL']],
-  ['Mobile, AL','New Orleans, LA',144,2.0,'I-10',['Bay St. Louis, MS']],
-  ['Mobile, AL','Atlanta, GA',312,4.5,'I-65/I-20',['Birmingham, AL']],
-  ['Macon, GA','Savannah, GA',165,2.4,'I-16',[]],
-  ['Savannah, GA','Jacksonville, FL',140,2.0,'I-95',['Brunswick, GA']],
-  ['Charlotte, NC','Raleigh, NC',167,2.5,'I-85/US-1',[]],
-  ['Charlotte, NC','Columbia, SC',94,1.4,'I-77',[]],
-  ['Columbia, SC','Charleston, SC',113,1.6,'I-26',[]],
-  ['Columbia, SC','Savannah, GA',160,2.4,'I-26/I-95',[]],
-  ['Nashville, TN','Memphis, TN',210,3.0,'I-40',['Jackson, TN']],
-  ['Nashville, TN','Louisville, KY',176,2.6,'I-65',['Bowling Green, KY']],
-  ['Nashville, TN','Knoxville, TN',178,2.6,'I-40',['Cookeville, TN']],
-  ['Nashville, TN','Chattanooga, TN',135,2.0,'I-24',[]],
-  ['Memphis, TN','Jackson, MS',210,3.0,'I-55',['Grenada, MS']],
-  ['Memphis, TN','Little Rock, AR',137,2.0,'I-40',[]],
-  ['Memphis, TN','St. Louis, MO',284,4.0,'I-55',['Cape Girardeau, MO']],
-  ['Jackson, MS','Meridian, MS',90,1.3,'I-20',[]],
-  ['Jackson, MS','New Orleans, LA',186,2.7,'I-55',['Hammond, LA']],
-  ['Jackson, MS','Birmingham, AL',239,3.5,'I-20',['Meridian, MS']],
-  ['Meridian, MS','Birmingham, AL',150,2.2,'I-20',['Tuscaloosa, AL']],
-  ['Baton Rouge, LA','New Orleans, LA',80,1.2,'I-10',[]],
-  ['Shreveport, LA','New Orleans, LA',325,4.7,'I-49/I-10',['Lafayette, LA','Baton Rouge, LA']],
-  ['Shreveport, LA','Dallas, TX',188,2.8,'I-20',['Marshall, TX']],
-  ['Shreveport, LA','Jackson, MS',190,2.7,'I-20',['Vicksburg, MS']],
-  ['Little Rock, AR','Jackson, MS',264,3.8,'I-55',['Memphis, TN']],
-  ['Little Rock, AR','St. Louis, MO',352,5.0,'I-55/I-40',['Memphis, TN']],
-  ['Oklahoma City, OK','Dallas, TX',206,3.0,'I-35',['Gainesville, TX']],
-  ['Oklahoma City, OK','Tulsa, OK',100,1.5,'I-44',[]],
-  ['Oklahoma City, OK','Kansas City, MO',337,4.8,'I-35',['Wichita, KS']],
-  ['Kansas City, MO','St. Louis, MO',248,3.5,'I-70',['Columbia, MO']],
-  ['Kansas City, MO','Chicago, IL',499,7.0,'I-55',['St. Louis, MO']],
-  ['St. Louis, MO','Indianapolis, IN',242,3.5,'I-70',['Terre Haute, IN']],
-  ['St. Louis, MO','Nashville, TN',309,4.5,'I-24',['Paducah, KY']],
-  ['Chicago, IL','Indianapolis, IN',181,2.7,'I-65',['Gary, IN']],
-  ['Chicago, IL','Milwaukee, WI',92,1.4,'I-94',[]],
-  ['Chicago, IL','Detroit, MI',281,4.0,'I-94',['Kalamazoo, MI','Ann Arbor, MI']],
-  ['Indianapolis, IN','Louisville, KY',112,1.7,'I-65',[]],
-  ['Indianapolis, IN','Cincinnati, OH',111,1.7,'I-74',[]],
-  ['Indianapolis, IN','Columbus, OH',175,2.6,'I-70',[]],
-  ['Louisville, KY','Cincinnati, OH',100,1.5,'I-71',[]],
-  ['Louisville, KY','Nashville, TN',176,2.6,'I-65',['Bowling Green, KY']],
-  ['Cincinnati, OH','Columbus, OH',107,1.6,'I-71',[]],
-  ['Cincinnati, OH','Pittsburgh, PA',304,4.4,'I-76',[]],
-  ['Columbus, OH','Pittsburgh, PA',186,2.7,'I-70',[]],
-  ['Columbus, OH','Cleveland, OH',144,2.1,'I-71',[]],
-  ['Cleveland, OH','Pittsburgh, PA',130,1.9,'I-76/I-79',[]],
-  ['Pittsburgh, PA','Philadelphia, PA',305,4.5,'I-76 (Tpk)',['Harrisburg, PA']],
-  ['Pittsburgh, PA','Washington, DC',244,3.5,'I-70/I-270',['Hagerstown, MD']],
-  ['Philadelphia, PA','New York, NY',95,1.5,'I-95/NJ Tpk',['Newark, NJ']],
-  ['Philadelphia, PA','Baltimore, MD',101,1.5,'I-95',['Wilmington, DE']],
-  ['Philadelphia, PA','Washington, DC',140,2.1,'I-95',['Baltimore, MD']],
-  ['New York, NY','Boston, MA',215,3.5,'I-95',['Providence, RI']],
-  ['Washington, DC','Richmond, VA',110,1.6,'I-95',['Fredericksburg, VA']],
-  ['Washington, DC','Baltimore, MD',40,0.6,'I-95/I-395',[]],
-  ['Richmond, VA','Charlotte, NC',334,4.9,'I-85',['Durham, NC','Raleigh, NC']],
-  ['Richmond, VA','Washington, DC',110,1.6,'I-95',[]],
-  // Mountain West
-  ['Denver, CO','Colorado Springs, CO',68,1.0,'I-25',[]],
-  ['Denver, CO','Albuquerque, NM',449,6.2,'I-25',['Santa Fe, NM']],
-  ['Denver, CO','Salt Lake City, UT',524,7.5,'I-70/I-15',['Green River, UT']],
-  ['Denver, CO','Kansas City, MO',601,8.5,'I-70',['Salina, KS','Topeka, KS']],
-  ['Salt Lake City, UT','Las Vegas, NV',421,5.8,'I-15',['St. George, UT']],
-  ['Salt Lake City, UT','Boise, ID',340,4.8,'I-84',['Twin Falls, ID']],
-  ['Las Vegas, NV','Los Angeles, CA',270,3.8,'I-15',['Barstow, CA']],
-  ['Las Vegas, NV','Phoenix, AZ',297,4.2,'US-93',['Kingman, AZ']],
-  ['Phoenix, AZ','Tucson, AZ',112,1.6,'I-10',[]],
-  ['Phoenix, AZ','Los Angeles, CA',372,5.3,'I-10',['Palm Springs, CA']],
-  ['Phoenix, AZ','Albuquerque, NM',466,6.5,'I-10/I-25',['Tucson, AZ','El Paso, TX']],
-  ['Tucson, AZ','Los Angeles, CA',487,6.8,'I-10',['Phoenix, AZ','Palm Springs, CA']],
-  ['Los Angeles, CA','San Diego, CA',120,1.8,'I-5/I-405',['Carlsbad, CA']],
-  ['Los Angeles, CA','San Francisco, CA',381,5.5,'I-5 or US-101',['Bakersfield, CA','Fresno, CA']],
-  ['San Francisco, CA','Sacramento, CA',90,1.3,'I-80',[]],
-  ['Sacramento, CA','Portland, OR',581,8.5,'I-5',['Redding, CA','Medford, OR']],
-  ['Portland, OR','Seattle, WA',174,2.8,'I-5',['Tacoma, WA']],
-  ['Portland, OR','Boise, ID',428,6.0,'I-84',['La Grande, OR']],
-  ['Seattle, WA','Boise, ID',496,7.0,'I-90/I-84',['Spokane, WA','Pendleton, OR']],
-];
-
 // Build bidirectional adjacency list with weights
-const GRAPH = {};
 ROAD_EDGES.forEach(([a,b,miles,hrs,hwy,pois])=>{
   if(!GRAPH[a]) GRAPH[a]={};
   if(!GRAPH[b]) GRAPH[b]={};
@@ -1779,7 +1474,7 @@ function buildFlyRoute(origin, dest, wps, startDate, nights, isCamping){
       'San Antonio':'San Antonio International (SAT)',
       'New York':'John F. Kennedy International (JFK)',
       'Los Angeles':'Los Angeles International (LAX)',
-      'Chicago':'O'Hare International (ORD)',
+      'Chicago':"O'Hare International (ORD)",
       'Atlanta':'Hartsfield-Jackson Atlanta International (ATL)',
       'Miami':'Miami International (MIA)',
       'Orlando':'Orlando International (MCO)',
@@ -2482,43 +2177,27 @@ function finalizePlan(){ saveToDrive(); showToast(lang==='ko'?'🎉 여행 계�
 function showSaveStatus(){ const el=document.getElementById('save-status'); el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),3000); }
 function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3200); }
 
-/* ═══════════════════════════════════════════════════
-   INIT — runs after all functions & data are defined
-═══════════════════════════════════════════════════ */
-
-/* ═══════════════════════════════════════════
-   INIT — runs after DOM + all JS is ready
-═══════════════════════════════════════════ */
+/* INIT */
 (function init(){
-  // Set today as default departure, +7 as return
-  const today = new Date();
-  const fmt   = d => d.toISOString().slice(0,10);
-  const ret   = new Date(today); ret.setDate(today.getDate()+7);
-  const sdEl  = document.getElementById('start-date');
-  const edEl  = document.getElementById('end-date');
-  if(sdEl) sdEl.value = fmt(today);
-  if(edEl) edEl.value = fmt(ret);
-
-  // Language
+  var today = new Date();
+  var fmt = function(d){ return d.toISOString().slice(0,10); };
+  var ret = new Date(today); ret.setDate(today.getDate()+7);
+  var sd = document.getElementById('start-date');
+  var ed = document.getElementById('end-date');
+  if(sd) sd.value = fmt(today);
+  if(ed) ed.value = fmt(ret);
   applyI18n();
   updateDuration();
-
-  // Drive-settings matches default transport
-  const ds = document.getElementById('drive-settings');
+  var ds = document.getElementById('drive-settings');
   if(ds) ds.style.display = transport.startsWith('car') ? '' : 'none';
-
-  // Close dropdowns on outside click
-  document.addEventListener('click', ev => {
+  document.addEventListener('click', function(ev){
     if(!ev.target.closest('.place-wrap'))
-      document.querySelectorAll('.place-dropdown').forEach(d=>d.classList.remove('open'));
+      document.querySelectorAll('.place-dropdown').forEach(function(d){ d.classList.remove('open'); });
   });
-
-  // Close modals on backdrop click
-  document.querySelectorAll('.modal-bd').forEach(bd=>{
-    bd.addEventListener('click', ev=>{ if(ev.target===bd) bd.classList.remove('open'); });
+  document.querySelectorAll('.modal-bd').forEach(function(bd){
+    bd.addEventListener('click', function(ev){ if(ev.target===bd) bd.classList.remove('open'); });
   });
 })();
-
-</script></script>
+</script>
 </body>
 </html>
